@@ -1,0 +1,366 @@
+﻿@using Markdig
+@using Markdig.Syntax
+@inject HttpClient Http
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<div class="screen" id="screen_@Id">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        @if (Title != "")
+        {
+            <span class="header-title">
+                @Title
+            </span>
+        }
+    </div>
+    @if(ShowBackLink && BackLink != "")
+    {
+        <a class="backlink" onclick="window.location.hash = '@BackLinkHref|clear'">@BackLink</a>
+    }
+    <audio src="Resources/Audio/text.mp3" id="text_audio_@Id"></audio>
+    <div id="audio_@Id">
+        
+    </div>
+    <div class="content" id="content_@Id">
+        <p>@Content</p>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    public string Title = "";
+    public MarkupString Content = new("");
+    public const int DefaultTextSpeed = 1;
+    public bool IsLoading = false;
+    public bool ShowBackLink = true;
+    public string BackLink = "";
+    public string BackLinkHref = "";
+
+    private CancellationTokenSource? _tokenSource = null;
+    private List<string> _history = new();
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        // If theres a hash, remove it.
+        if (NavigationManager.Uri.Contains("#"))
+        {
+            NavigationManager.NavigateTo(NavigationManager.Uri.Split('#')[0]);
+        }
+
+        // Listen for hash changes, and load the content accordingly.
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        _tokenSource = new CancellationTokenSource();
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+        LoadContent("System/Start.md", _tokenSource);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Console.WriteLine($"Location changed: {e.Location}");
+        if (!e.Location.Contains("#"))
+            return;
+        var hash = e.Location.Split('#')[1];
+        if (_tokenSource != null)
+        {
+            _tokenSource.Cancel();
+            _tokenSource.Dispose();
+            IsLoading = false;
+            _tokenSource = new CancellationTokenSource();
+        }
+        
+        // If the ending is |clear, we need to remove one item from the history.
+        if (hash.EndsWith("|clear"))
+        {
+            hash = hash.Replace("|clear", "");
+            _history.RemoveAt(_history.Count - 1);
+            _history.RemoveAt(_history.Count - 1);
+        }
+        
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+        LoadContent(hash, _tokenSource!);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+    }
+
+    private async Task LoadContent(string file, CancellationTokenSource tokenSource)
+    {
+        if (IsLoading)
+        {
+            Console.WriteLine($"Attempted to load content while already loading: {file}");
+            return;
+        }
+
+        BackLink = _history.Count > 0 ? _history[^1] : "";
+        BackLinkHref = _history.Count > 0 ? _history[^1] : "";
+        // For the Href, we only want the # part.
+        if (BackLinkHref.Contains("#"))
+        {
+            BackLinkHref = BackLinkHref.Split('#')[1];
+            BackLinkHref = $"#{BackLinkHref}";
+        }
+        
+        // If the BackLink ends with .md, we need to change it to .doc for styling purposes.
+        if (BackLink.EndsWith(".md"))
+        {
+            BackLink = BackLink.Replace(".md", ".doc");
+        }
+
+        // Push the current hash into the history, so we can go back to it.
+        _history.Add(file);
+
+        IsLoading = true;
+        Console.WriteLine($"Loading content: {file}");
+        Title = "";
+        Content = new("");
+        await JsRuntime.InvokeVoidAsync("deleteAudio", Id);
+
+        var response = await Http.GetAsync($"Resources/{file}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Content = new MarkupString($"Failed to load content: {file}");
+            Console.WriteLine($"Failed to load content: {file}");
+            IsLoading = false;
+            return;
+        }
+
+        var responseString = await response.Content.ReadAsStringAsync();
+        // If the file we recieved doesn't start with "#TERMINAL_FILE", it's not something we can display.
+        if (!responseString.StartsWith("#TERMINAL_FILE"))
+        {
+            Console.Error.WriteLine($"Invalid file: {file}");
+            // Reload the page
+            NavigationManager.NavigateTo(NavigationManager.Uri);
+            return;
+        }
+
+        var scrollToBottom = false;
+        
+        var headers = responseString.Split('\n');
+        var headerValues = new Dictionary<string, string>();
+        foreach (var header in headers)
+        {
+            if (header.StartsWith("`"))
+                break; // We've reached the end of the headers.
+
+            if (header.Contains('='))
+            {
+                var parts = header.Split('=');
+                var headerName = parts[0];
+                var headerValue = parts[1].Trim();
+                if (!headerValues.TryAdd(headerName, headerValue))
+                {
+                    Console.Error.WriteLine($"Duplicate header: {headerName}");
+                }
+            }
+        }
+
+        foreach (var (header, value) in headerValues)
+        {
+            Console.WriteLine($"Header: {header} - {value}");
+            
+            switch (header)
+            {
+                case "AUDIO_REQUIRED":
+                    // This is a special header that tells the system to download the required audio files.
+                    // The value is a comma separated list of audio files. 
+                    // We'll insert them into the DOM as audio elements.
+                    // Using [play=filename] will play the audio file.
+                    var audioFiles = value.Split(',');
+                    foreach (var audioFile in audioFiles)
+                    {
+                        var fileINeedToChange = audioFile.Trim();
+                        // Just in case, remove any " from the filename.
+                        fileINeedToChange = fileINeedToChange.Replace("\"", "");
+                        var audioPath = $"Resources/Audio/{fileINeedToChange}";
+                        var audioElement = $"<audio src=\"{audioPath}\" id=\"audio_{fileINeedToChange}_{Id}\"></audio>";
+                        // Insert the audio element into the DOM.
+                        await JsRuntime.InvokeVoidAsync("insertAudio", audioElement, Id);
+                    }
+
+                    break;
+                case "TITLE":
+                    Title = value;
+                    break;
+                case "BACKLINK":
+                    ShowBackLink = value == "true";
+                    break;
+                case "SCROLL_DOWN":
+                    scrollToBottom = value == "true";
+                    break;
+                default:
+                    Console.Error.WriteLine($"Unknown header: {header}");
+                    break;
+            }
+        }
+
+        // Since the actual file content is the first code block, find it and extract it.
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var document = Markdown.Parse(responseString, pipeline);
+        responseString = document.Descendants<CodeBlock>().First().Lines.ToString();
+
+        // Some tags modify the content in a way where we need to replace them before rendering.
+        responseString = responseString.Replace("[date]", Helpers.GetCurrentDate());
+
+        var content = responseString.ToCharArray();
+        var contentString = "";
+        var currentSpeed = DefaultTextSpeed;
+        var functionsToCall = new List<string>();
+        var loadAfterFinish = "";
+        for (var i = 0; i < content.Length; i++)
+        {
+            if (tokenSource.Token.IsCancellationRequested)
+            {
+                IsLoading = false;
+                return;
+            }
+
+            var exit = false;
+            var c = content[i];
+            contentString += c;
+
+            if (c == '[')
+            {
+                var tag = "";
+                for (var i1 = i; i1 < content.Length; i1++)
+                {
+                    if (content[i1] == ']')
+                    {
+                        break;
+                    }
+
+                    if (content[i1] == '\n')
+                    {
+                        break;
+                    }
+
+                    tag += content[i1];
+                }
+
+                if (tag != "")
+                {
+                    i += tag.Length;
+                    contentString = contentString.Remove(contentString.Length - 1);
+
+                    var tagParts = tag.Split('=');
+                    var tagName = tagParts[0].Replace("[", "");
+                    var tagValue = tagParts.Length > 1 ? tagParts[1].Replace("]", "") : "";
+
+                    switch (tagName)
+                    {
+                        case "button":
+                            // I am lying, this is not a button. It's a link.
+                            var buttonText = tagValue.Split(';')[1];
+                            var buttonLink = tagValue.Split(';')[0];
+                            contentString += $"<a href=\"#{buttonLink}\">{buttonText}</a>";
+
+                            // Since dotnet can't intercept anchor clicks, we'll have to do it manually.
+                            functionsToCall.Add($"document.getElementById('screen_{Id}').querySelector('a[href=\"#{buttonLink}\"]').addEventListener('click', function(e) {{ e.preventDefault(); window.location.hash = '{buttonLink}'; }});");
+                            break;
+                        case "speed":
+                            if (int.TryParse(tagValue, out var speed))
+                            {
+                                currentSpeed = speed;
+                            }
+                            else
+                            {
+                                if (tagValue == "default")
+                                {
+                                    currentSpeed = DefaultTextSpeed;
+                                }
+                                else
+                                {
+                                    await Console.Error.WriteLineAsync($"Invalid speed: {tagValue}");
+                                }
+                            }
+
+                            break;
+                        case "delay":
+                            if (int.TryParse(tagValue, out var delay))
+                            {
+                                await Task.Delay(delay);
+                            }
+                            else
+                            {
+                                await Console.Error.WriteLineAsync($"Invalid delay: {tagValue}");
+                            }
+
+                            break;
+                        case "color":
+                            contentString += $"<span class=\"color-{tagValue}\">";
+                            break;
+                        case "block":
+                            if (tagValue == "none")
+                            {
+                                contentString += "<span></span>";
+                            }
+                            else
+                            {
+                                contentString += $"<span class=\"block block-{tagValue}\"></span>";
+                            }
+
+                            break;
+                        case "play":
+                            await JsRuntime.InvokeVoidAsync("playAudio", tagValue, Id);
+                            break;
+                        case "load":
+                            exit = true;
+                            loadAfterFinish = tagValue;
+                            _history.Clear();
+                            break;
+
+                        default:
+                            await Console.Error.WriteLineAsync($"Unknown tag: {tagName}");
+                            break;
+                    }
+                }
+            }
+
+            if (exit)
+                break;
+
+            Content = new MarkupString(contentString);
+            await JsRuntime.InvokeVoidAsync("playText", Id);
+            StateHasChanged();
+            if (scrollToBottom)
+            {
+                await JsRuntime.InvokeVoidAsync("scrollToBottom", Id);
+            }
+
+            foreach (var s in functionsToCall)
+            {
+                await JsRuntime.InvokeVoidAsync("eval", s);
+            }
+
+            await Task.Delay(currentSpeed);
+        }
+
+        IsLoading = false;
+        if (loadAfterFinish != "")
+        {
+            if (_tokenSource != null)
+            {
+                _tokenSource.Cancel();
+                _tokenSource.Dispose();
+                _tokenSource = new CancellationTokenSource();
+            }
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            LoadContent(loadAfterFinish, _tokenSource!);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+}
