@@ -24,7 +24,7 @@ jobs:
         dotnet-version: 8.0.x
 
     - name: Build
-      run: dotnet publish -c Release -o ./publish
+      run: dotnet publish -c Release
 
     - name: Install SSH Key
       uses: webfactory/ssh-agent@v0.9.0
@@ -34,7 +34,7 @@ jobs:
     - name: Upload to remote server
       run: |
         ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/${{ secrets.SSH_USER }}/LorePage"
-        scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./publish/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/${{ secrets.SSH_USER }}/LorePage
+        scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./SU.LorePage/bin/Release/net8.0/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/${{ secrets.SSH_USER }}/LorePage
     - name: Stop previous
       run: |
         ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
