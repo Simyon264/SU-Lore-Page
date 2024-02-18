@@ -31,13 +31,26 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Upload to remote server
+    - name: Prepare files for deployment
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/${{ secrets.SSH_USER }}/LorePage"
-        scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./SU.LorePage/bin/Release/net8.0/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/${{ secrets.SSH_USER }}/LorePage
+        mkdir deploy
+        cp -r * deploy/
+        find deploy -type d -name "bin" -exec rm -rf {} +
+        find deploy -type d -name "obj" -exec rm -rf {} +
+
+    - name: Upload to remote server
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ${{ secrets.SSH_USER }}
+        key : ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        source: "deploy/*"
+        target: "/home/SS14/LorePage"
+
     - name: Stop previous
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet run /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
     - name: Start
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet run /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
