@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    runs-on: ubunut-latest
+    
+    env:
+      Solution_Name: SU.LorePage.sln
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.2
+
+    - name: Build
+      run: dotnet publish -c Release -o ./publish
+
+    - name: Install SSH Key
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Upload to remote server
+      run: |
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/SS14/LorePage"
+        scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./publish/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/SS14/LorePage
+    - name: Stop previous
+      run: |
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/SS14/LorePage/SU.LorePage.dll > /home/SS14/LorePage/app.log 2>&1 &"
+    - name: Start
+      run: |
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/SS14/LorePage/SU.LorePage.dll > /home/SS14/LorePage/app.log 2>&1 &"
