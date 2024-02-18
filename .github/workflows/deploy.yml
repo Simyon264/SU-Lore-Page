@@ -33,7 +33,7 @@ jobs:
 
     - name: Upload to remote server
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/SS14/LorePage"
+        ssh -v -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/SS14/LorePage"
         scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./publish/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/SS14/LorePage
     - name: Stop previous
       run: |
