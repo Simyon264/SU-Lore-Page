@@ -7,7 +7,7 @@ on:
 jobs:
 
   deploy:
-    runs-on: ubunut-latest
+    runs-on: ubuntu-latest
     
     env:
       Solution_Name: SU.LorePage.sln
