@@ -23,21 +23,16 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Build
-      run: dotnet publish -c Release -o ./publish
-
-    - name: Install SSH Key
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
+    - name: Install sshpass
+      run: sudo apt-get install -y sshpass
+      
     - name: Upload to remote server
       run: |
-        ssh -v -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/SS14/LorePage"
+        sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/${{ secrets.SSH_USER }}/LorePage"
         scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./publish/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/SS14/LorePage
     - name: Stop previous
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/SS14/LorePage/SU.LorePage.dll > /home/SS14/LorePage/app.log 2>&1 &"
+        sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
     - name: Start
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/SS14/LorePage/SU.LorePage.dll > /home/SS14/LorePage/app.log 2>&1 &"
+        sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
