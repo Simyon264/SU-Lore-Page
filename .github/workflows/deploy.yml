@@ -23,16 +23,21 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Install sshpass
-      run: sudo apt-get install -y sshpass
-      
+    - name: Build
+      run: dotnet publish -c Release -o ./publish
+
+    - name: Install SSH Key
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
     - name: Upload to remote server
       run: |
-        sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/${{ secrets.SSH_USER }}/LorePage"
-        scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./publish/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/SS14/LorePage
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /home/${{ secrets.SSH_USER }}/LorePage"
+        scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r ./publish/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/home/${{ secrets.SSH_USER }}/LorePage
     - name: Stop previous
       run: |
-        sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
     - name: Start
       run: |
-        sshpass -p ${{ secrets.SSH_PASSWORD }} ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet /home/${{ secrets.SSH_USER }}/LorePage/SU.LorePage.dll > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
