@@ -49,7 +49,7 @@ jobs:
 
     - name: Stop previous
       run: |
-        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "pkill -f  "dotnet run --project /home/${{ secrets.SSH_USER }}/LorePage/deploy/SU.LorePage/SU.LorePage.csproj"
+        ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "pkill -f  'dotnet run --project /home/${{ secrets.SSH_USER }}/LorePage/deploy/SU.LorePage/SU.LorePage.cspro'"
     - name: Start
       run: |
         ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} "nohup dotnet run --project /home/${{ secrets.SSH_USER }}/LorePage/deploy/SU.LorePage/SU.LorePage.csproj > /home/${{ secrets.SSH_USER }}/LorePage/app.log 2>&1 &"
