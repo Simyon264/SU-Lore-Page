@@ -34,7 +34,7 @@ jobs:
     - name: Prepare files for deployment
       run: |
         mkdir deploy
-        echo '${{ vars.DEPLOY_APPSETTINGS }}' > ./SU.LorePage/appsettings.Secret.json
+        echo '${{ vars.DEPLOY_APPSETTINGS }}' > ./SU.LorePage/appsettings.json
         rsync -av --exclude='bin' --exclude='obj' --exclude='.git' --exclude='.github' ./ deploy/
 
     - name: Upload to remote server
