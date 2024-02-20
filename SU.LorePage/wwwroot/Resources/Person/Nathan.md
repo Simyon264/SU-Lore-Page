@@ -47,7 +47,7 @@ Incident Reports
     Subject:        Nathan Wilkerson
     Location:       Sector Umbra
     Description:    Subject set up a Tesla Engine incorrectly, resulting in total loss of the station. ERT was called in to deal with the great loss of life.
-    Conclusion:     Subject was reprimanded and forced to 3 hours of engineering classes. No further action was taken.
+    Conclusion:     Subject was reprimanded and forced to 30 hours of engineering classes. No further action was taken.
     
 [color=info]Incident 3-11-2223:[color=white]
     Subject:        Nathan Wilkerson
