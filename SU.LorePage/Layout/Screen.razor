@@ -122,7 +122,8 @@
         Content = new("");
         await JsRuntime.InvokeVoidAsync("deleteAudio", Id);
 
-        var response = await Http.GetAsync($"Resources/{file}");
+        // Get response and skip cache
+        var response = await Http.GetAsync($"Resources/{file}?_=" + DateTime.Now.Ticks);
 
         if (!response.IsSuccessStatusCode)
         {

@@ -40,7 +40,7 @@ Incident Reports
 [color=info]Incident 23-02-2224:[color=white]
     Subject:        Nathan Wilkerson
     Location:       Sector Umbra
-    Description:    Inspection notes for shift: [button=Person/Nathan/;View]
+    Description:    Inspection notes for shift: [button=Person/Nathan/Mildred.23.2.2024.md;View]
     Conclusion:     N / A
 [color=info]Incident 27-01-2224:[color=white]
     Subject:        Nathan Wilkerson
