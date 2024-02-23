@@ -37,6 +37,11 @@ For more information, please refer to the incident reports below.
 Incident Reports
 
 [color=sys][speed=0]--- BEGIN ---[speed=default][color=white]
+[color=info]Incident 23-02-2224:[color=white]
+    Subject:        Nathan Wilkerson
+    Location:       Sector Umbra
+    Description:    Inspection notes for shift: [button=Person/Nathan/;View]
+    Conclusion:     N / A
 [color=info]Incident 27-01-2224:[color=white]
     Subject:        Nathan Wilkerson
     Location:       Sector Umbra
