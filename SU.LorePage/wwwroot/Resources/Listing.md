@@ -10,6 +10,7 @@ Available files:[color=sys][speed=0]
 
 [button=Places/NT-L-9259.md;Place/NT-L-9259]
 [button=Places/NT-F-1963.md;Place/NT-F-1963]
+[button=Places/CloningLabatory.md;Place/NT-Cloning-Facility-Andromeda]
 
 [speed=0]--- END ---[speed=default]
 
