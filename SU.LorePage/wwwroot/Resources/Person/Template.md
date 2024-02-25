@@ -1,5 +1,5 @@
 #TERMINAL_FILE
-TITLE=File: Person/NATHAN-WILKERSON
+TITLE=File: Person/FIRSTNAME-LASTNAME
 BACKLINK=true
 ```
 Personal Information
