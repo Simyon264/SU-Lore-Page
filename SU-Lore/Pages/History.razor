@@ -1,0 +1,158 @@
+﻿@page "/history"
+
+@using DiffPlex
+@using DiffPlex.DiffBuilder
+@using DiffPlex.DiffBuilder.Model
+@using Microsoft.JSInterop
+@using Serilog
+@using SU_Lore.Database.Models.Pages
+@using SU_Lore.Helpers
+
+@inject IJSRuntime JsRuntime
+@inject PageReader PageReader
+@inject NavigationManager NavigationManager
+
+<div class="screen">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        <span class="header-title">
+            Viewing History - @_pageId
+        </span>
+    </div>
+    <div class="header">
+        <a class="backlink" href="/?page=/system/listing">Return to listing</a>
+    </div>
+
+    <div class="content filelist" id="content">
+        @for (var i = 0; i < _pages.Count; i++)
+        {
+            var curPage = _pages[i];
+            if (i == 0)
+            {
+                <div>
+                    <h2>@curPage.UpdatedAt - By: @curPage.UpdatedBy</h2>
+                    <p>Version @curPage.Version</p>
+                    <p>Author @curPage.CreatedBy</p>
+                    <p>Bytes: @System.Text.Encoding.Unicode.GetByteCount(curPage.Content)</p>
+                </div>
+                continue;
+            }
+            var newPage = _pages[i - 1];
+            var diffBuilder = new InlineDiffBuilder(new Differ());
+            var diff = diffBuilder.BuildDiffModel(curPage.Content, newPage.Content);
+            <div>
+                <h2>@curPage.UpdatedAt - By: @curPage.UpdatedBy</h2>
+                <p>Version @curPage.Version</p>
+                <p>Author @curPage.CreatedBy</p>
+                <a class="button" href="/?page=@curPage.Id">View page at this point</a>
+                
+                @if(curPage.Title != newPage.Title) {
+                    <p>Title Changed: @newPage.Title -> @curPage.Title</p>
+                }
+                
+                @if(curPage.VirtualPath != newPage.VirtualPath) {
+                    <p>Virtual Path Changed: @newPage.VirtualPath -> @curPage.VirtualPath</p>
+                }
+                
+                <p>Bytes: @System.Text.Encoding.Unicode.GetByteCount(curPage.Content)</p>
+                
+                @if(_showingDiffs.Contains(i)) {
+                    <button asp-toggle-diff="@i" class="button">Hide Diff</button>
+                    <pre>
+                        @foreach (var line in diff.Lines)
+                        {
+                            switch (line.Type)
+                            {
+                                case ChangeType.Inserted:
+                                    <span class="diff-insert">@line.Text</span>
+                                    break;
+                                case ChangeType.Deleted:
+                                    <span class="diff-delete">@line.Text</span>
+                                    break;
+                                case ChangeType.Modified:
+                                    <span class="diff-modify">@line.Text</span>
+                                    break;
+                                default:
+                                    <span>@line.Text</span>
+                                    break;
+                            }
+                        }
+                    </pre>
+                } else {
+                    <button asp-toggle-diff="@i" class="button">Show Diff</button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Page> _pages = new List<Page>();
+    private DotNetObjectReference<History> _dotNetObjectReference;
+    private List<int> _showingDiffs = new List<int>();
+    private string _pageId = "";
+
+    [JSInvokable]
+    public void ToggleDiff(string diffId)
+    {
+        if (!int.TryParse(diffId, out var id))
+        {
+            Log.Error("Failed to parse diff id {DiffId}", diffId);
+            return;
+        }
+
+        if (_showingDiffs.Contains(id))
+        {
+            _showingDiffs.Remove(id);
+        }
+        else
+        {
+            _showingDiffs.Add(id);
+        }
+        StateHasChanged();
+    }
+    
+    protected override Task OnInitializedAsync()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var query = uri.Query;
+        var queryDictionary = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query);
+        if (!queryDictionary.TryGetValue("page", out var pageId))
+        {
+            Log.Error("Failed to get page id from query string");
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        _pageId = pageId.ToString();
+        
+        var parsed = Guid.TryParse(pageId, out var guid);
+        if (!parsed)
+        {
+            Log.Error("Failed to parse guid {PageId}", pageId);
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        
+        if (!PageReader.TryGetPagesFromGuid(guid, out var pages))
+        {
+            Log.Error("Failed to get pages from guid {PageId}", pageId);
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        
+        _pages = pages;
+        return Task.CompletedTask;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetObjectReference = DotNetObjectReference.Create(this);
+            JsRuntime.InvokeVoidAsync("start", _dotNetObjectReference);
+        }
+    }
+}

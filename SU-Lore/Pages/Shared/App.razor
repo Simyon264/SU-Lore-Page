@@ -1,0 +1,28 @@
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <base href="/"/>
+    <meta name="robots" content="noindex">
+    <HeadOutlet/>
+</head>
+
+<body>
+
+<Routes @rendermode="InteractiveServer"/>
+
+<link href="app.css?v=8" rel="stylesheet">
+<script src="app.js?v=8"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wdth,wght@62.5..100,100..900&display=swap" rel="stylesheet">
+
+<script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

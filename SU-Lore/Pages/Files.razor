@@ -1,0 +1,125 @@
+﻿@page "/files"
+
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Caching.Memory
+@using Microsoft.JSInterop
+@using SU_Lore.Database
+@using SU_Lore.Database.Models.Accounts
+@using SU_Lore.Helpers
+@using SU_Lore.Pages.Components
+
+@inject NavigationManager NavigationManager
+@inject AuthenticationHelper AuthHelper
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JsRuntime
+@inject IMemoryCache MemoryCache
+
+<div class="screen">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        <span class="header-title">
+            Files
+        </span>
+    </div>
+    <div class="header">
+        <a class="backlink" href="/?page=/system/listing">Return to listing</a>
+    </div>
+
+    <Alert></Alert>
+
+    <div id="parent" class="parent">
+        @if(AuthHelper.FetchAccount().Result?.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin, Role.Moderator, Role.Whitelisted) ?? false)
+        {
+            <form enctype="multipart/form-data" id="uploadForm">
+                <input type="file" name="file" id="fileInput"/>
+                <button type="submit" class="button">Upload</button>
+            </form>
+        }
+        <div class="content filelist" id="content">
+            @foreach (var file in DbContext.Files.Include(file => file.UploadedBy).ToList())
+            {
+                <div class="file">
+                    <span>
+                        Name: @file.Name@file.Extension
+                        Size: @GetFileSize(file.Size)
+                        Uploaded at: @file.UploadedAt
+                        Uploaded by: @file.UploadedBy.Username
+                    </span>
+                    <a href="/resources/@(file.Name + file.Extension)" target="_blank">View</a>
+                </div>
+                <button class="button" file-manager-delete="@(file.Name + file.Extension)">Delete</button>
+                <br/>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private DotNetObjectReference<Files> _dotNetReference;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetReference = DotNetObjectReference.Create(this);
+            JsRuntime.InvokeVoidAsync("start", _dotNetReference);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var account = await AuthHelper.FetchAccount();
+        if (account == null)
+        {
+            NavigationManager.NavigateTo("/account/login", true);
+            return;
+        }
+    }
+
+    [JSInvokable]
+    public async void DeleteFile(string fileName)
+    {
+        var account = await AuthHelper.FetchAccount();
+        if (account == null)
+        {
+            JsRuntime.InvokeVoidAsync("showAlert", "Whoops!", "You are not logged in!");
+            return;
+        }
+        
+        var file = DbContext.Files.Include(file => file.UploadedBy).FirstOrDefault(f => f.Name + f.Extension == fileName);
+        if (file == null)
+        {
+            JsRuntime.InvokeVoidAsync("showAlert", "Whoops!", "File not found! (How did you do that?)");
+            return;
+        }
+        
+        if (file.UploadedBy.Id == account.Id || account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin, Role.Moderator))
+        {
+            DbContext.Files.Remove(file);
+            await DbContext.SaveChangesAsync();
+            MemoryCache.Remove(file.Name + file.Extension);
+            
+            JsRuntime.InvokeVoidAsync("showAlert", "Success!", "File deleted!");
+        }
+        else
+        {
+            JsRuntime.InvokeVoidAsync("showAlert", "Whoops!", "You do not have permission to delete this file!");
+        }
+    }
+
+    private string GetFileSize(long size)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size = size / 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

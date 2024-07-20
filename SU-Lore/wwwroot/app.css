@@ -1,0 +1,553 @@
+code {
+    color: #c02d76;
+}
+
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 14pt;
+    font-weight: normal;
+    line-height: 1.35rem;
+
+    --bg: #111;
+    --bg-overlay: #080808;
+    --fg: #e5fbff;
+    --glow: 0 0 3px #66e5ffcc;
+    --bg-dialog: #222222;
+    --glow-dialog: 0 0 3px #222222cc;
+    --fg-dialog: #e5fbff;
+
+    --fg-cc: #4fe656;
+    --glow-cc: 0 0 3px #32c038cc;
+    --fg-info: #43acff;
+    --glow-info: 0 0 3px #30a4ffcc;
+    --fg-warning: #ff9f1f;
+    --glow-warning: 0 0 3px #ff9b16cc;
+    --fg-error: #fc4141;
+    --glow-error: 0 0 3px #ff0e0ecc;
+    --fg-sys: #9ab5ea;
+    --glow-sys: 0 0 3px #759ef0cc;
+    --fg-bright: #fff;
+    --glow-bright: 0 0 3px #ffffffcc;
+    --fg-bloodred: #ff0000;
+    --glow-bloodred: 0 0 3px #ff0000cc;
+    --fg-yellow: #ffff69;
+    --glow-yellow: 0 0 3px #f6f656cc;
+    
+    --fg-command: #3180e6;
+    --glow-command: 0 0 3px #3180e6cc;
+    
+    --fg-science: #ff00ff;
+    --glow-science: 0 0 3px #ff00ffcc;
+    --fg-cargo: #d37700;
+    --glow-cargo: 0 0 3px #d37700cc;
+    --fg-engineering: #ff6a00;
+    --glow-engineering: 0 0 3px #ff6a00cc;
+    --fg-medical: #00ffff;
+    --glow-medical: 0 0 3px #00ffffcc;
+    --fg-security: #ff0000;
+    --glow-security: 0 0 3px #ff0000cc;
+    
+    --fg-darkgreen: #068306;
+    --glow-darkgreen: 0 0 3px #068306cc;
+    
+    
+    --link-underline-color: #43acff;
+
+    background-color: black;
+    color: white;
+    text-shadow: var(--glow);
+
+    width: 100%;
+    height: 100%;
+
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--fg-sys) var(--bg);
+}
+
+.app {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    justify-items: center;
+    align-items: center;
+}
+
+.color-yellow {
+    color: var(--fg-yellow);
+    text-shadow: var(--glow-yellow);
+}
+
+.color-science {
+    color: var(--fg-science);
+    text-shadow: var(--glow-science);
+}
+
+.color-cargo {
+    color: var(--fg-cargo);
+    text-shadow: var(--glow-cargo);
+}
+
+.color-engineering {
+    color: var(--fg-engineering);
+    text-shadow: var(--glow-engineering);
+}
+
+.color-medical {
+    color: var(--fg-medical);
+    text-shadow: var(--glow-medical);
+}
+
+.color-security {
+    color: var(--fg-security);
+    text-shadow: var(--glow-security);
+}
+
+.color-darkgreen {
+    color: var(--fg-darkgreen);
+    text-shadow: var(--glow-darkgreen);
+}
+
+.color-command {
+    color: var(--fg-command);
+    text-shadow: var(--glow-command);
+}
+
+.color-bloodred {
+    color: var(--fg-bloodred);
+    text-shadow: var(--glow-bloodred);
+}
+
+.color-cc {
+    color: var(--fg-cc);
+    text-shadow: var(--glow-cc);
+}
+
+.color-warn {
+    color: var(--fg-warning);
+    text-shadow: var(--glow-warning);
+}
+
+.color-sys {
+    color: var(--fg-sys);
+    text-shadow: var(--glow-sys);
+}
+
+.color-white {
+    color: var(--fg-bright);
+    text-shadow: var(--glow-bright);
+}
+
+.color-red {
+    color: var(--fg-error);
+    text-shadow: var(--glow-error);
+}
+
+.color-info {
+    color: var(--fg-info);
+    text-shadow: var(--glow-info);
+}
+
+body {
+    display: grid;
+    box-sizing: border-box;
+    grid-template-rows: 1fr auto;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    justify-items: center;
+    align-items: center;
+}
+
+a:link:not(.button),
+a:visited:not(.button) {
+    color: var(--fg-bright);
+    text-decoration: underline;
+    text-decoration-color: var(--link-underline-color);
+    text-shadow: var(--glow-bright);
+}
+
+a:hover:not(.button),
+a:active:not(.button) {
+    background-color: var(--fg-bright);
+    text-shadow: none;
+    text-decoration: none;
+    box-shadow: var(--glow-bright);
+    color: var(--bg);
+}
+
+a:not(.button)::before {
+    content: "> ";
+    display: inline-block;
+    text-decoration: none;
+}
+
+.block-error {
+    --fg-block: var(--fg-error);
+    --glow-block: var(--glow-error);
+}
+
+.block-warning {
+    --fg-block: var(--fg-warning);
+    --glow-block: var(--glow-warning);
+}
+
+.block-info {
+    --fg-block: var(--fg-info);
+    --glow-block: var(--glow-info);
+}
+
+.block {
+    padding-left: 2ch;
+    position: relative;
+}
+
+.block::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0.5ch;
+    background: var(--fg-block);
+    box-shadow: var(--glow-block);
+}
+
+.span.block {
+    padding-left: 2ch;
+    position: relative;
+}
+
+.screen {
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: column;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0.5rem 1ch;
+    max-width: 82ch;
+    max-height: 37.45rem;
+    overflow: hidden;
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: var(--glow);
+    transition-property: border-radius, filter, transform, opcaity;
+    transition-duration: 130ms, 130ms, 130ms, 75ms;
+    transition-timing-function: ease-out;
+}
+
+.header {
+    display: flex;
+    flex: none;
+    gap: 1ch;
+}
+
+.logo {
+    flex: 0 0 auto;
+}
+
+.nt-logo {
+    font-weight: 600;
+    text-align: center;
+    width: 3ch;
+}
+
+.nt-logo::before,
+.nt-logo::after {
+    content: "";
+    display: inline-block;
+    width: 1ch;
+    height: 0.75rem;
+    vertical-align: 0;
+    background-color: currentColor;
+}
+
+.nt-logo::before {
+    clip-path: polygon(10% 0, 90% 0, 90% 60%);
+}
+
+.nt-logo::after {
+    clip-path: polygon(10% 100%, 90% 100%, 10% 40%);
+}
+
+.content {
+    overflow: auto;
+    white-space-collapse: preserve;
+}
+
+.header-title::before {
+    content: "- ";
+}
+
+.backlink::before {
+    content: "← " !important;
+    display: inline-block !important;
+    text-decoration: none !important;
+}
+
+.backlink {
+    white-space-collapse: preserve !important;
+    user-select: none !important;
+}
+
+.backlink:hover {
+    cursor: pointer;!important;
+}
+
+.audio_container {
+    display: none;
+}
+
+
+
+.button {
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 130ms, color 130ms;
+    font: inherit;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--fg-bright);
+    text-shadow: var(--glow-bright);
+}
+
+.button:hover {
+    background-color: var(--fg-bright);
+    color: var(--bg);
+    text-shadow: none;
+    box-shadow: var(--glow-bright);
+}
+
+button::before {
+    content: "[";
+}
+
+button::after {
+    content: "]";
+}
+
+button::before, button::after {
+    line-height: 1.2rem;
+    vertical-align: 0.05rem;
+}
+
+.alert {
+    display: none;
+    box-sizing: border-box;
+    flex-direction: column;
+    padding: 1rem 2ch;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    max-width: 70ch;
+    height: 100%;
+    max-height: 30rem;
+    background: var(--bg-dialog);
+    color: var(--fg-dialog);
+    box-shadow: var(--glow-dialog);
+    transform: translate(-50%, -50%);
+    white-space-collapse: preserve-breaks;
+}
+
+.alert-visible {
+    display: flex;
+}
+
+.alert::before {
+    content: '';
+    position: absolute;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    left: 0.5ch;
+    right: 0.5ch;
+    border-color: var(--fg-sys);
+    border-width: 0.25rem 0.5ch;
+    border-style: solid;
+    box-shadow: var(--glow-sys), inset var(--glow-sys);
+    pointer-events: none;
+}
+
+.alert-text {
+    flex: 1 1 auto;
+    padding-top: 1.35rem;
+    overflow: auto;
+}
+
+.button-container {
+    display: flex;
+    gap: 1ch;
+    justify-content: center;
+    border-bottom: 2px solid var(--fg);
+}
+
+.content-editable {
+    display: block;
+    height: 100%;
+    padding: 0.5rem 1ch;
+    margin-top: 0.5rem;
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: var(--glow);
+    border: none;
+    resize: none;
+    overflow: auto;
+    
+    /* Reapply the font-family (why does it not inherit?) */ 
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 14pt;
+    font-weight: normal;
+    line-height: 1.35rem;
+    text-shadow: var(--glow);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.parent {
+    all: inherit;
+    
+    box-shadow: none;
+}
+
+.properties {
+    padding: 0.5rem 1ch;
+    background-color: var(--bg);
+    color: var(--fg);
+}
+
+.property {
+    gap: 0.5ch;
+}
+
+.property input[type="checkbox"] {
+    margin-left: 0.5ch;
+}
+
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    background-color: #111;
+    border: 1px solid #e5fbff;
+}
+
+input[type="checkbox"]:checked {
+    background-color: #e5fbff;
+}
+
+input:not([type="checkbox"])  {
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: var(--glow);
+    border: none;
+    resize: none;
+    overflow: auto;
+    width: 90%;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+}
+
+.diff-insert {
+    background-color: #d6ffed;
+}
+
+.diff-delete {
+    background-color: #ffd6d6;
+}
+
+.diff-modify {
+    background-color: #fffbcc;
+}
+
+.content span {
+    display:inline;
+}
+
+pre {
+    background-color: white !important;
+    color: black !important;
+    text-shadow: none !important;
+}
+
+.settings-container {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--fg);
+    text-shadow: var(--glow);
+}
+
+.checkbox {
+    display: inline-block;
+    position: relative;
+    text-transform: uppercase;
+}
+
+.checkbox input {
+    -webkit-appearance: none;
+    display: none;
+    appearance: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}
+
+.checkbox-marker {
+    color: var(--fg-bright);
+    text-shadow: var(--glow-bright);
+}
+
+.checkbox-marker::before {
+    content: '[';
+}
+
+.checkbox-marker::after {
+    content: ']';
+}
+
+.checkbox-marker::before,
+.checkbox-marker::after {
+    line-height: 1.2rem;
+    vertical-align: 0.05rem;
+}
+
+.checkbox-marker > .checkbox-check::before {
+    content: '\A0';
+}
+
+:checked + .checkbox-marker > .checkbox-check::before {
+    content: 'X';
+}
+
+:hover + .checkbox-marker {
+    background-color: var(--fg-bright);
+    color: var(--bg);
+    text-shadow: none;
+    box-shadow: var(--glow-bright);
+}
+
+.filelist {
+    white-space-collapse: preserve-breaks !important;
+}
+
+video {
+    max-width: 45rem;
+}
+
+.overflow {
+    overflow-x: auto;
+}

@@ -1,0 +1,28 @@
+@using SU_Lore.Helpers
+@inherits LayoutComponentBase
+
+@inject AuthenticationHelper AuthenticationHelper
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    _ = AuthenticationHelper.FetchAccount(true); // Trigger redirect if no account present
+}
+
+@Body
+
+<div class="settings-container">
+    <label class="checkbox">
+        @if (HttpContextAccessor.HttpContext != null && HttpContextAccessor.HttpContext.Request.Cookies.ContainsKey("instant") && HttpContextAccessor.HttpContext.Request.Cookies["instant"] == "true")
+        {
+        <input id="instant-option" type="checkbox" checked>
+        }
+        else
+        {
+        <input id="instant-option" type="checkbox">
+        }
+        <span class="checkbox-marker">
+            <span class="checkbox-check"></span>
+        </span>
+        Show pages instantly
+    </label>
+</div>

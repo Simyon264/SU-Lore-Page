@@ -1,0 +1,437 @@
+﻿@page "/editor"
+
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@using Serilog
+@using SU_Lore.Data
+@using SU_Lore.Data.RichText
+@using SU_Lore.Database
+@using SU_Lore.Database.Models.Accounts
+@using SU_Lore.Database.Models.Pages
+@using SU_Lore.Helpers
+@using SU_Lore.Pages.Components
+
+@inject AuthenticationHelper AuthHelper
+@inject NavigationManager NavigationManager
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JsRuntime
+@inject RichTextParser RichTextParser
+
+<div class="screen">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        <span class="header-title">
+            @if(Mode == "edit")
+            {
+                <span>Editing - @Page?.Title</span>
+            }
+            else
+            {
+                <span>Creating new page</span>
+            }
+        </span>
+    </div>
+
+    <Alert></Alert>
+    <div id="parent" class="parent">
+        @if (Unauthorized)
+        {
+            <h1 class="color-red">Oh no!</h1>
+            <p>@Message</p>
+            <a href="/?page=/system/listing">Return to listing</a>
+        }
+        else
+        {
+            <div class="button-container">
+                <button class="button" asp-method="Save">Save</button>
+                <button class="button" asp-method="Exit">Exit without saving</button>
+                <button class="button" asp-method="ToggleProperties">Page properties</button>
+                <button class="button" asp-method="ShowRichTextHelp">Help</button>
+                <button class="button button-red" asp-method="Delete">Delete</button>
+            </div>
+            @if (ShowProperties)
+            {
+                <div class="properties">
+                    <div class="property">
+                        <label for="title">Title</label>
+                        <br/>
+                        <input autocomplete="off" type="text" id="title" value="@Page?.Title" />
+                    </div>
+                    <div class="property">
+                        <label for="path">Path</label>
+                        <p>Path must be unique and cannot contain special characters.</p>
+                        <p>The path is the URL that the page will be accessible from, imagine a file path like in a file system. Like windows folders.</p>
+                        <p>Example: /path/to/page</p>
+                        <br/>
+                        <input autocomplete="off" type="text" id="path" value="@Page?.VirtualPath" />
+                    </div>
+                    <br/>
+                    @foreach (var flagType in Enum.GetValues(typeof(PageFlagType)).Cast<PageFlagType>())
+                    {
+                        // Get the PageFlag attribute for the enum, if it exists
+                        var flagAttribute = flagType.GetAttribute<PageFlagAttribute>();
+                        if (flagAttribute.Hidden)
+                            continue;
+                        
+                    <div class="property">
+                        <label for="@flagType.ToString()">@flagType.ToString()</label>
+                        @if (Page?.Flags.FirstOrDefault(f => f.Type == flagType) != null)
+                        {
+                            <input type="checkbox" id="@flagType.ToString()" checked />
+                        }
+                        else
+                        {
+                            <input type="checkbox" id="@flagType.ToString()" />
+                        }
+                        <br/>
+                        <p>@flagAttribute.Description</p>
+                        @if (flagAttribute.HasValue)
+                        {
+                            <input type="text" id="@flagType.ToString()_text" autocomplete="off" value="@Page?.Flags.FirstOrDefault(f => f.Type == flagType)?.Value" />
+                        } else
+                        {
+                            <input type="text" id="@flagType.ToString()_text" autocomplete="off" value="@Page?.Flags.FirstOrDefault(f => f.Type == flagType)?.Value" class="hidden" hidden="hidden" />
+                        }
+                    </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <textarea class="content content-editable" id="content" placeholder="Click to edit content..." lang="en-US">
+                    @Page?.Content
+                </textarea>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private bool Unauthorized { get; set; } = false;
+    private string Message { get; set; } = "No further details available.";
+    private string Mode { get; set; } = "new";
+    private Page? Page { get; set; }
+    private bool ShowProperties { get; set; } = false;
+    private DotNetObjectReference<Editor>? _dotNetRef;
+
+    private const string RichTextHelp =
+        @"
+            In order to format your text, you can use the following tags:
+            [color=<color>]Text[/color] - Changes the color of the text. Replace <color> with a color name.
+            Be aware: Theres only a limited amount of colors available. 
+            Colors: cc (Central Command Green), red, info (Blue), sys (A lighter blue), white, warn (Orange)
+            [block=<color>]Text[/block] - Puts text into a block, so it adds blocks to the left side of text. Replace <color> with a color name.
+            Blocks: error (red), info (blue), warn (orange)
+            You can also use the following tags to create links:
+            [button=/path/to/page;Button text] - Creates a button that links to the specified page. Replace /path/to/page with the path to the page.
+            If you need to link to an external resource, you can use /system/link/<url> as the path. Replace <url> with the URL.
+            
+            There are 3 kinds of media you can embed:
+            [image=filename;alt text;width;height] - Embeds an image. Replace filename with the filename of the image. Alt text is the text that will be displayed if the image cannot be loaded.
+            [video=filename] - Embeds a video.
+            [audio=filename] - Embeds an audio file.
+
+            To control how your page is rendered, you can use the following tags:
+            [delay=<time>] - Delays the next print by the specified time in milliseconds.
+            [speed=<speed>] - Changes the speed of the text. Replace <speed> with a number. You can use default as a value to reset the speed.
+            [play=<sound>] - Plays a sound. Replace <sound> with a sound name. This is limited to media uploaded to the system and cannot be used to play external sounds.
+        ";
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            //JsRuntime.InvokeVoidAsync("setAlertOnLeave");
+            JsRuntime.InvokeVoidAsync("start", _dotNetRef);
+        }
+    }
+
+    private bool _hasConfirmedDelete = false;
+    
+    /// <summary>
+    /// Ok, so this is a thing because for some reason doing @onclick="[method]" doesn't work.
+    /// </summary>
+    [JSInvokable]
+    public async void CallAspMethod(string method)
+    {
+        switch (method)
+        {
+            case "Delete":
+                if (Mode == "new")
+                {
+                    await JsRuntime.InvokeVoidAsync("showAlert", "Unable", "You cannot delete a page that hasn't been saved yet.");
+                    return;
+                }
+                if (!_hasConfirmedDelete)
+                {
+                    await JsRuntime.InvokeVoidAsync("showAlert", "Are you sure?", "This action cannot be undone. Close this dialog and click delete again to confirm.");
+                    _hasConfirmedDelete = true;
+                }
+                else
+                {
+                    // Confirm that the user is allowed to delete the page
+                    var account = await AuthHelper.FetchAccount(true);
+                    if (account == null)
+                    {
+                        return;
+                    }
+                    
+                    if (!account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin) && Page!.CreatedBy != account.Id)
+                    {
+                        await JsRuntime.InvokeVoidAsync("showAlert", "Error", "You can only delete pages you have created.");
+                        return;
+                    }
+                    
+                    // We have a no tracking page, so we have to fetch every single page with the same GUID
+                    var pages = DbContext.Pages.Where(p => p.PageGuid == Page!.PageGuid).ToList();
+                    foreach (var page in pages)
+                    {
+                        DbContext.Pages.Remove(page);
+                    }
+                    await DbContext.SaveChangesAsync();
+                    NavigationManager.NavigateTo("/?page=/system/listing", true);
+                }
+                break;
+            case "Exit":
+                if (Mode == "new")
+                {
+                    NavigationManager.NavigateTo("/?page=/system/listing", true);
+                }
+                else
+                {
+                    NavigationManager.NavigateTo("/?page=" + Page!.VirtualPath, true);
+                }
+                break;
+            case "ShowRichTextHelp":
+                await JsRuntime.InvokeVoidAsync("showAlert", "Rich text help", RichTextHelp);
+                break;
+            case "Save":
+                if (ShowProperties)
+                {
+                    ApplyProperties();
+                } else
+                {
+                    SaveContent();
+                }
+                await Task.Delay(1000); // Wait for the content to be saved
+                Save();
+                break;
+            case "ToggleProperties":
+                ToggleProperties();
+                break;
+            default:
+                Log.Error("Unknown method called: {method}", method);
+                break;
+        }
+    }
+    
+    private async void SaveContent()
+    {
+        Page!.Content = await JsRuntime.InvokeAsync<string>("getValueFromInputElement", "content");
+    }
+
+    private async void ToggleProperties()
+    {
+        if (ShowProperties)
+        {
+            // they could have been changed
+            ApplyProperties();
+        }
+        else
+        {
+            SaveContent(); // State change will reset the content, so we need to save it first
+        }
+        
+        await Task.Delay(100); // Wait for the content to be saved
+        ShowProperties = !ShowProperties;
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dotNetRef = DotNetObjectReference.Create(this);
+        var account = await AuthHelper.FetchAccount(true);
+        if (account == null)
+        {
+            Unauthorized = true;
+            Message = "Account not found in database.";
+            return;
+        }
+        
+        if (!account.Roles.HasRole(Role.Whitelisted)) {
+            Unauthorized = true;
+            Message = "You are not authorized to edit or create pages.";
+            return;
+        }
+        var uri = new Uri(NavigationManager.Uri);
+        var query = uri.Query;
+        if (!string.IsNullOrEmpty(query))
+        {
+            var queryDict = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query);
+            if (queryDict.TryGetValue("mode", out var value))
+            {
+                Mode = value!;
+            }
+            // We REQUIRE a page ID to be present in the query string if the mode is not "new"
+            if (Mode != "new" && queryDict.TryGetValue("id", out var id))
+            {
+                var pageId = id!.ToString();
+                var found = DbContext.Pages
+                    .Include(p => p.Flags)
+                    .Where(p => p.PageGuid == Guid.Parse(pageId))
+                    .OrderByDescending(p => p.Version)
+                    .AsNoTracking()
+                    .FirstOrDefault();
+                if (found == null)
+                {
+                    Unauthorized = true;
+                    Message = "The page ID provided does not exist in the database.";
+                    return;
+                }
+                
+                if (!account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin) && found.CreatedBy != account.Id)
+                {
+                    Unauthorized = true;
+                    Message = "You can only edit pages you have created.";
+                    return;
+                }
+                
+                Page = found;
+            }
+            else
+            {
+                Unauthorized = true;
+                Message = "No page ID was provided in the query string.";
+                return;
+            }
+        }
+        if (Mode == "new")
+        {
+            Page = new Page()
+            {
+                Content = "",
+                Flags = [],
+                Title = "New page",
+                Version = 0,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = account.Id,
+                VirtualPath = "/path/to/page",
+                UpdatedAt = DateTime.UtcNow,
+                UpdatedBy = account.Id,
+                PageGuid = Guid.NewGuid(), // If we get any collisions, I'll be surprised
+            };
+        }
+    }
+
+    private async void Save()
+    {
+        try
+        {
+            _ = await RichTextParser.Parse(Page!.Content);
+        }
+        catch (Exception e)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "Your content has parsing errors. Please fix them before saving. Error: " + e.Message);
+            return;
+        }
+        
+        // If the path is still the default, deny saving
+        if (Page!.VirtualPath == "/path/to/page")
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "You must set a path for the page before saving.");
+            return;
+        }
+        
+        // Virtual path must always point to a file, so cannot end with /
+        if (Page!.VirtualPath.EndsWith("/"))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path must not end with a /.");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Page.VirtualPath))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path cannot be empty.");
+            return;
+        }
+        
+        // If the path is already in use, deny saving (unless it's the same page)
+        var found = DbContext.Pages.FirstOrDefault(p => p.VirtualPath == Page!.VirtualPath);
+        if (found != null && found.PageGuid != Page!.PageGuid)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path is already in use.");
+            return;
+        }
+        
+        // Path can only contain A-Z, a-z, 0-9, - and / and _ AND spaces
+        if (!Page!.VirtualPath.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '/' || c == '_' || c == ' '))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path can only contain A-Z, a-z, 0-9, - and / and _, and spaces.");
+            return;
+        }
+        
+        // No double slashes
+        if (Page!.VirtualPath.Contains("//"))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path cannot contain double slashes.");
+            return;
+        }
+        
+        // Finalizing the text content
+        // remove any <div> and </div> inserted by the browser
+        Page!.Content = Page!.Content.Replace("<div>", "").Replace("</div>", "");
+        // remove any <br> and <br /> inserted by the browser and replace with \n
+        Page!.Content = Page!.Content.Replace("<br>", "\n").Replace("<br />", "\n");
+        
+        var account = await AuthHelper.FetchAccount(true);
+        if (account == null)
+        {
+            return;
+        } 
+        
+        var page = new Page()
+        {
+            Content = Page!.Content,
+            Flags = Page!.Flags,
+            Title = Page!.Title,
+            Version = Page!.Version + 1,
+            CreatedAt = Page!.CreatedAt,
+            CreatedBy = Page!.CreatedBy,
+            VirtualPath = Page!.VirtualPath,
+            UpdatedAt = DateTime.UtcNow,
+            UpdatedBy = account.Id,
+            PageGuid = Page!.PageGuid,
+        };
+        // Insert page into database
+        DbContext.Pages.Add(page);
+        await DbContext.SaveChangesAsync();
+        NavigationManager.NavigateTo("/?page="+page.VirtualPath, true);
+    }
+
+    private async void ApplyProperties()
+    {
+        var title = await JsRuntime.InvokeAsync<string>("getValueFromInputElement", "title");
+        var path = await JsRuntime.InvokeAsync<string>("getValueFromInputElement", "path");
+        var flags = new List<PageFlag>();
+        foreach (var flagType in Enum.GetValues(typeof(PageFlagType)).Cast<PageFlagType>())
+        {
+            var flag = await JsRuntime.InvokeAsync<string>("getCheckBoxValue", flagType.ToString());
+            var flagText = await JsRuntime.InvokeAsync<string>("getValueFromInputElement", $"{flagType.ToString()}_text");
+            if (flag.ToLower() == "true")
+            {
+                flags.Add(new PageFlag()
+                {
+                    Type = flagType,
+                    Value = flagText,
+                });
+            }
+        }
+        
+        Page!.Title = title;
+        Page!.VirtualPath = path;
+        Page!.Flags = [..flags];
+    }
+}
