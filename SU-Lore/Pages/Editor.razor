@@ -390,25 +390,51 @@
         if (account == null)
         {
             return;
-        } 
-        
-        var page = new Page()
+        }
+
+        try
         {
-            Content = Page!.Content,
-            Flags = Page!.Flags,
-            Title = Page!.Title,
-            Version = Page!.Version + 1,
-            CreatedAt = Page!.CreatedAt,
-            CreatedBy = Page!.CreatedBy,
-            VirtualPath = Page!.VirtualPath,
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = account.Id,
-            PageGuid = Page!.PageGuid,
-        };
-        // Insert page into database
-        DbContext.Pages.Add(page);
-        await DbContext.SaveChangesAsync();
-        NavigationManager.NavigateTo("/?page="+page.VirtualPath, true);
+            var page = new Page()
+            {
+                Content = Page!.Content,
+                Flags = Page!.Flags,
+                Title = Page!.Title,
+                Version = Page!.Version + 1,
+                CreatedAt = Page!.CreatedAt,
+                CreatedBy = Page!.CreatedBy,
+                VirtualPath = Page!.VirtualPath,
+                UpdatedAt = DateTime.UtcNow,
+                UpdatedBy = account.Id,
+                PageGuid = Page!.PageGuid,
+            };
+            
+            // In order to prevent " duplicate key value violates unique constraint "PK_PageFlag"" errors, we duplicate the flags, like in ApplyProperties
+            var flags = new List<PageFlag>();
+            foreach (var flagType in Enum.GetValues(typeof(PageFlagType)).Cast<PageFlagType>())
+            {
+                var flag = Page!.Flags.FirstOrDefault(f => f.Type == flagType);
+                if (flag != null)
+                {
+                    flags.Add(new PageFlag()
+                    {
+                        Type = flagType,
+                        Value = flag.Value,
+                    });
+                }
+            }
+
+            page.Flags = [..flags];
+            
+            // Insert page into database
+            DbContext.Pages.Add(page);
+            await DbContext.SaveChangesAsync();
+            NavigationManager.NavigateTo("/?page="+page.VirtualPath, true);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Error saving page");
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "An error occurred while saving the page. Please try again later. Error: " + e.Message);
+        }
     }
 
     private async void ApplyProperties()
