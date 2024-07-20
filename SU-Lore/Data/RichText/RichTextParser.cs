@@ -32,12 +32,27 @@ public class RichTextParser
         var user = await _authenticationHelper.FetchAccount();
         ReplaceStatics(ref input, user);
         ReplaceHeaders(ref input);
+        ReplaceItalic(ref input);
         ParseButtonTags(ref input);
         ParseColorTags(ref input);
         ParseBlockTags(ref input);
         ParseMediaTags(ref input);
         
         return new MarkupString(input);
+    }
+    
+    private void ReplaceItalic(ref string input)
+    {
+        int startIndex;
+        while ((startIndex = input.IndexOf("[italic]", StringComparison.Ordinal)) != -1)
+        {
+            var closingTagIndex = input.IndexOf("[/italic]", startIndex, StringComparison.Ordinal);
+            if (closingTagIndex == -1)
+                break;
+
+            var replacement = $"<i>{input.Substring(startIndex + 8, closingTagIndex - startIndex - 8)}</i>";
+            input = input.Remove(startIndex, closingTagIndex - startIndex + 9).Insert(startIndex, replacement);
+        }
     }
 
     /// <summary>
