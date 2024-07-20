@@ -351,6 +351,13 @@
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path must not end with a /.");
             return;
         }
+        
+        // must start with /
+        if (!Page!.VirtualPath.StartsWith("/"))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path must start with a /.");
+            return;
+        }
 
         if (string.IsNullOrEmpty(Page.VirtualPath))
         {
