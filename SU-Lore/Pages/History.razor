@@ -67,16 +67,16 @@
                             switch (line.Type)
                             {
                                 case ChangeType.Inserted:
-                                    <span class="diff-insert">@line.Text</span>
+                                    <p class="diff-insert">@line.Text</p>
                                     break;
                                 case ChangeType.Deleted:
-                                    <span class="diff-delete">@line.Text</span>
+                                    <p class="diff-delete">@line.Text</p>
                                     break;
                                 case ChangeType.Modified:
-                                    <span class="diff-modify">@line.Text</span>
+                                    <p class="diff-modify">@line.Text</p>
                                     break;
                                 default:
-                                    <span>@line.Text</span>
+                                    <p>@line.Text</p>
                                     break;
                             }
                         }
