@@ -55,6 +55,11 @@ public class TreeNode
     public static void GetTree(TreeNode node, ref StringBuilder sb, string indent = "", bool isLast = true)
     {
         sb.Append(indent);
+        if (node.Page != null && node.Page.Flags.HasFlag(PageFlagType.Unlisted))
+        {
+            sb.Append("[color=bloodred]");
+        }
+        
         if (isLast)
         {
             sb.Append("└──");
@@ -73,6 +78,11 @@ public class TreeNode
         else
         {
             sb.AppendLine(node.Name);
+        }
+        
+        if (node.Page != null && node.Page.Flags.HasFlag(PageFlagType.Unlisted))
+        {
+            sb.Append("[/color]");
         }
 
         for (int i = 0; i < node.Children.Count; i++)

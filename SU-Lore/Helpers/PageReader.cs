@@ -308,7 +308,23 @@ public class PageReader
                 {
                     var item = page.First();
                     if (item.Flags.HasFlag(PageFlagType.Unlisted))
-                        continue;
+                    {
+                        if (account == null)
+                        {
+                            continue;
+                        }
+                        
+                        if (!account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
+                        {
+                            continue;
+                        }
+                        
+                        if (item.CreatedBy != account.Id)
+                        {
+                            // not the creator
+                            continue;
+                        }
+                    }
                     
                     files.Add(item);
                 }
