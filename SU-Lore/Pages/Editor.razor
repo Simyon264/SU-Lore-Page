@@ -395,6 +395,13 @@
             return;
         }
         
+        // Cannot start with /root
+        if (Page!.VirtualPath.StartsWith("/root"))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path cannot start with /root.");
+            return;
+        }
+        
         // Finalizing the text content
         // remove any <div> and </div> inserted by the browser
         Page!.Content = Page!.Content.Replace("<div>", "").Replace("</div>", "");
