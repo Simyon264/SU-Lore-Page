@@ -222,3 +222,13 @@ window.showPasswordPrompt = (pageGuid) => {
     const guidContainer = document.getElementById("guid-container");
     guidContainer.innerHTML = pageGuid;
 }
+
+function videoError(id) {
+    const element = document.getElementById(id);
+    console.debug("Loading fallback image for video");
+    element.src = "/resources/missing.mp4";
+
+    element.loop = true;
+    element.load();
+    element.play();
+}

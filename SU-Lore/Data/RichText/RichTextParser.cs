@@ -134,7 +134,7 @@ public class RichTextParser
                 throw new Exception("Image tag is malformed. It should be in the format [image=filename;alt text;width;height]");
             }
 
-            var replacement = $"<img src=\"/resources/{split[0]}\" alt=\"{split[1]}\" width=\"{split[2]}\" height=\"{split[3]}\">";
+            var replacement = $"<img src=\"/resources/{split[0]}\" alt=\"{split[1]}\" width=\"{split[2]}\" height=\"{split[3]}\" onError=\"console.error('Image failed to load: {split[0]}');this.onerror=null;this.src='/resources/missing.png';this.height=270;this.width=480;\">";
             input = input.Remove(startIndex, endIndex - startIndex + 1).Insert(startIndex, replacement);
         }
         
@@ -157,8 +157,9 @@ public class RichTextParser
             if (endIndex == -1)
                 break;
 
+            var id = GetRandomId();
             var path = input.Substring(startIndex + 7, endIndex - startIndex - 7);
-            var replacement = $"<video controls><source src=\"/resources/{path}\" type=\"video/mp4\"></video>";
+            var replacement = $"<video id=\"{id}\" controls><source src=\"/resources/{path}\" type=\"video/mp4\" onError=\"console.error('Video failed to load: {path}');this.onError=null;videoError('{id}')\"></video>";
             input = input.Remove(startIndex, endIndex - startIndex + 1).Insert(startIndex, replacement);
         }
     }
@@ -215,5 +216,10 @@ public class RichTextParser
             var replacement = $"<p class=\"block block-{colorName}\">{input.Substring(endIndex + 1, closingTagIndex - endIndex - 1)}</p>";
             input = input.Remove(startIndex, closingTagIndex - startIndex + 8).Insert(startIndex, replacement);
         }
+    }
+    
+    private string GetRandomId()
+    {
+        return Guid.NewGuid().ToString().Substring(0, 8);
     }
 }
