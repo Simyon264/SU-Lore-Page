@@ -26,6 +26,11 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id);
+            
+            entity.HasMany(p => p.Flags)
+                .WithOne(f => f.Page)
+                .HasForeignKey(f => f.PageId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         
         modelBuilder.Entity<Models.File>(entity =>

@@ -35,6 +35,10 @@ public class PageFlag
     {
         return Type.GetHashCode();
     }
+    
+    public int PageId { get; set; }
+    
+    public Page Page { get; set; }
 }
 
 public static class PageFlagExtensions

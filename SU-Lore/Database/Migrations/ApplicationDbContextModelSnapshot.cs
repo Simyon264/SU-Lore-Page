@@ -135,7 +135,7 @@ namespace SU_Lore.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("PageId")
+                    b.Property<int>("PageId")
                         .HasColumnType("integer");
 
                     b.Property<int>("Type")
@@ -165,9 +165,13 @@ namespace SU_Lore.Migrations
 
             modelBuilder.Entity("SU_Lore.Database.Models.Pages.PageFlag", b =>
                 {
-                    b.HasOne("SU_Lore.Database.Models.Pages.Page", null)
+                    b.HasOne("SU_Lore.Database.Models.Pages.Page", "Page")
                         .WithMany("Flags")
-                        .HasForeignKey("PageId");
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Page");
                 });
 
             modelBuilder.Entity("SU_Lore.Database.Models.Pages.Page", b =>

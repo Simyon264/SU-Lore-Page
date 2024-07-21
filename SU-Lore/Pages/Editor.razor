@@ -184,15 +184,23 @@
                         await JsRuntime.InvokeVoidAsync("showAlert", "Error", "You can only delete pages you have created.");
                         return;
                     }
-                    
-                    // We have a no tracking page, so we have to fetch every single page with the same GUID
-                    var pages = DbContext.Pages.Where(p => p.PageGuid == Page!.PageGuid).ToList();
-                    foreach (var page in pages)
+
+                    try
                     {
-                        DbContext.Pages.Remove(page);
+                        // We have a no tracking page, so we have to fetch every single page with the same GUID
+                        var pages = DbContext.Pages.Where(p => p.PageGuid == Page!.PageGuid).ToList();
+                        foreach (var page in pages)
+                        {
+                            DbContext.Pages.Remove(page);
+                        }
+                        await DbContext.SaveChangesAsync();
+                        NavigationManager.NavigateTo("/?page=/system/listing", true);
                     }
-                    await DbContext.SaveChangesAsync();
-                    NavigationManager.NavigateTo("/?page=/system/listing", true);
+                    catch (Exception e)
+                    {
+                        Log.Error(e, "Error deleting page");
+                        await JsRuntime.InvokeVoidAsync("showAlert", "Error deleting", "An error occurred while deleting the page. Please try again later. Error: " + e.Message);
+                    }
                 }
                 break;
             case "Exit":
