@@ -30,16 +30,86 @@ public class RichTextParser
     public async Task<MarkupString> Parse(string input)
     {
         var user = await _authenticationHelper.FetchAccount();
+        
         ReplaceStatics(ref input, user);
         ReplaceAlligmentTags(ref input);
         ReplaceHeaders(ref input);
         ReplaceItalic(ref input);
+        ReplaceBold(ref input);
+        ReplaceUnderline(ref input);
+        ReplaceStrikethrough(ref input);
+        ReplaceCollapse(ref input);
+        
         ParseButtonTags(ref input);
         ParseColorTags(ref input);
         ParseBlockTags(ref input);
         ParseMediaTags(ref input);
         
         return new MarkupString(input);
+    }
+    
+    /// <summary>
+    /// Replaces the collapse tags, so [collapse=header]content[/collapse] becomes a collapsible element.
+    /// </summary>
+    private void ReplaceCollapse(ref string input)
+    {
+        int startIndex;
+        while ((startIndex = input.IndexOf("[collapse=", StringComparison.Ordinal)) != -1)
+        {
+            var endIndex = input.IndexOf("]", startIndex, StringComparison.Ordinal);
+            if (endIndex == -1)
+                break;
+
+            var header = input.Substring(startIndex + 10, endIndex - startIndex - 10);
+            var closingTagIndex = input.IndexOf("[/collapse]", endIndex, StringComparison.Ordinal);
+            if (closingTagIndex == -1)
+                break;
+
+            var replacement = $"<details><summary>{header}</summary>{input.Substring(endIndex + 1, closingTagIndex - endIndex - 1)}</details>";
+            input = input.Remove(startIndex, closingTagIndex - startIndex + 11).Insert(startIndex, replacement);
+        }
+    }
+    
+    private void ReplaceStrikethrough(ref string input)
+    {
+        int startIndex;
+        while ((startIndex = input.IndexOf("[strike]", StringComparison.Ordinal)) != -1)
+        {
+            var closingTagIndex = input.IndexOf("[/strike]", startIndex, StringComparison.Ordinal);
+            if (closingTagIndex == -1)
+                break;
+
+            var replacement = $"<span style=\"text-decoration: line-through;\">{input.Substring(startIndex + 8, closingTagIndex - startIndex - 8)}</span>";
+            input = input.Remove(startIndex, closingTagIndex - startIndex + 9).Insert(startIndex, replacement);
+        }
+    }
+    
+    private void ReplaceUnderline(ref string input)
+    {
+        int startIndex;
+        while ((startIndex = input.IndexOf("[underline]", StringComparison.Ordinal)) != -1)
+        {
+            var closingTagIndex = input.IndexOf("[/underline]", startIndex, StringComparison.Ordinal);
+            if (closingTagIndex == -1)
+                break;
+
+            var replacement = $"<span style=\"text-decoration: underline;\">{input.Substring(startIndex + 11, closingTagIndex - startIndex - 11)}</span>";
+            input = input.Remove(startIndex, closingTagIndex - startIndex + 12).Insert(startIndex, replacement);
+        }
+    }
+    
+    private void ReplaceBold(ref string input)
+    {
+        int startIndex;
+        while ((startIndex = input.IndexOf("[bold]", StringComparison.Ordinal)) != -1)
+        {
+            var closingTagIndex = input.IndexOf("[/bold]", startIndex, StringComparison.Ordinal);
+            if (closingTagIndex == -1)
+                break;
+
+            var replacement = $"<b>{input.Substring(startIndex + 6, closingTagIndex - startIndex - 6)}</b>";
+            input = input.Remove(startIndex, closingTagIndex - startIndex + 7).Insert(startIndex, replacement);
+        }
     }
     
     private void ReplaceAlligmentTags(ref string input)
