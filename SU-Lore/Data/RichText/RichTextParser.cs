@@ -31,6 +31,7 @@ public class RichTextParser
     {
         var user = await _authenticationHelper.FetchAccount();
         ReplaceStatics(ref input, user);
+        ReplaceAlligmentTags(ref input);
         ReplaceHeaders(ref input);
         ReplaceItalic(ref input);
         ParseButtonTags(ref input);
@@ -39,6 +40,18 @@ public class RichTextParser
         ParseMediaTags(ref input);
         
         return new MarkupString(input);
+    }
+    
+    private void ReplaceAlligmentTags(ref string input)
+    {
+        input = input.Replace("[center]", "<div style=\"text-align: center;\">");
+        input = input.Replace("[/center]", "</div>");
+        
+        input = input.Replace("[left]", "<div style=\"text-align: left;\">");
+        input = input.Replace("[/left]", "</div>");
+        
+        input = input.Replace("[right]", "<div style=\"text-align: right;\">");
+        input = input.Replace("[/right]", "</div>");
     }
     
     private void ReplaceItalic(ref string input)
