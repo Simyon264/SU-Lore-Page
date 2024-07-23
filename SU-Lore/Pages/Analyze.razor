@@ -1,0 +1,146 @@
+﻿@page "/analyze"
+
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components.Authorization
+@using Serilog
+@using SU_Lore.Data.RichText
+@using SU_Lore.Database
+@using SU_Lore.Database.Models
+@using SU_Lore.Database.Models.Pages
+@using SU_Lore.Helpers
+
+@inject ApplicationDbContext ApplicationDbContext
+@inject PageReader PageReader
+@inject NavigationManager NavigationManager
+@inject AuthenticationHelper AuthenticationHelper
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="screen">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        <span class="header-title">
+            Analyze - @_pageId
+        </span>
+    </div>
+    <div class="header">
+        <a class="backlink" href="/?page=/system/listing">Return to listing</a>
+    </div>
+
+    <div class="content" style="white-space-collapse: collapse !important;" id="content">
+        <p>Page views: @_pageStat.Views</p>
+        <h2>Backlinks</h2>
+        <p>This page has @_backlinks.Count link(s) to it</p>
+        @foreach (var backlink in _backlinks)
+        {
+            <p>@backlink.Title (@backlink.PageGuid)</p>
+            <p>@backlink.VirtualPath</p>
+            <a href="/?page=@backlink.VirtualPath">View page</a>
+            <br/>
+        }
+    </div>
+</div>
+
+@code{
+    private PageStat _pageStat;
+    private Page _latestPage;
+    private string _pageId;
+    private List<Page> _backlinks;
+    
+    protected override Task OnInitializedAsync()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var query = uri.Query;
+        var queryDictionary = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query);
+        if (!queryDictionary.TryGetValue("page", out var pageId))
+        {
+            Log.Error("Failed to get page id from query string");
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        _pageId = pageId.ToString();
+        
+        var parsed = Guid.TryParse(pageId, out var guid);
+        if (!parsed)
+        {
+            Log.Error("Failed to parse guid {PageId}", pageId);
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        
+        if (!PageReader.TryGetPagesFromGuid(guid, out var pages, false))
+        {
+            Log.Error("Failed to get pages from guid {PageId}", pageId);
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        
+        if (pages.Count == 0)
+        {
+            Log.Error("No pages found for guid {PageId}", pageId);
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        
+        _latestPage = pages[0];
+
+        var stat = ApplicationDbContext.PageStats.FirstOrDefault(p => p.PageId == guid);
+        if (stat == null)
+        {
+            Log.Error("No page stat found for guid {PageId}", pageId);
+            NavigationManager.NavigateTo("/?page=/system/notfound", true);
+            return Task.CompletedTask;
+        }
+        
+        _pageStat = stat;
+        
+        // To calculate the backlinks (so what links to this page), we first need to get all page guid's
+        var allPages = ApplicationDbContext.Pages.Select(p => p.PageGuid).Distinct().ToList();
+        var latestVersions = new List<Page>();
+        foreach (var page in allPages)
+        {
+            if (PageReader.TryGetPagesFromGuid(page, out var pages2, false))
+            {
+                latestVersions.Add(pages2[0]);
+            }
+        }
+        
+        // Now we can calculate the backlinks, first we run the RichTextParser on all pages
+        var backlinks = new List<Page>();
+        foreach (var page in latestVersions)
+        {
+            var parser = new RichTextParser(AuthenticationHelper, AuthenticationStateProvider);
+            try
+            {
+                var parsedPage = parser.Parse(page.Content).Result;
+                // We now look for any anchor tags and check if the link in there (so /path/to/page) is the same as the page we are analyzing
+                var anchorTagRegex = new Regex(@"<a href=""(.*?)"".*?>(.*?)</a>");
+                var matches = anchorTagRegex.Matches(parsedPage.ToString());
+                foreach (Match match in matches)
+                {
+                    var link = match.Groups[1].Value;
+                    // if the link starts with #, remove the ä
+                    if (link.StartsWith("#"))
+                    {
+                        link = link.Substring(1);
+                    }
+                    if (link == _latestPage.VirtualPath)
+                    {
+                        backlinks.Add(page);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Failed to parse page {PageId}", page.PageGuid);
+            }
+        }
+        
+        _backlinks = backlinks;
+        
+        return Task.CompletedTask;
+    }
+
+}

@@ -136,7 +136,7 @@
             return Task.CompletedTask;
         }
         
-        if (!PageReader.TryGetPagesFromGuid(guid, out var pages))
+        if (!PageReader.TryGetPagesFromGuid(guid, out var pages, false))
         {
             Log.Error("Failed to get pages from guid {PageId}", pageId);
             NavigationManager.NavigateTo("/?page=/system/notfound", true);
