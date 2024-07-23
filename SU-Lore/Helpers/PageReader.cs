@@ -2,8 +2,10 @@
 using System.Text;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using SU_Lore.Data;
 using SU_Lore.Database;
+using SU_Lore.Database.Models;
 using SU_Lore.Database.Models.Accounts;
 using SU_Lore.Database.Models.Pages;
 
@@ -17,12 +19,14 @@ public class PageReader
     private readonly ApplicationDbContext _context;
     private readonly AuthenticationHelper _authHelper;
     private readonly NavigationManager _navigationManager;
+    private readonly IMemoryCache _cache;
     
-    public PageReader(ApplicationDbContext context, AuthenticationHelper authHelper, NavigationManager navigationManager)
+    public PageReader(ApplicationDbContext context, AuthenticationHelper authHelper, NavigationManager navigationManager, IMemoryCache cache)
     {
         _context = context;
         _authHelper = authHelper;
         _navigationManager = navigationManager;
+        _cache = cache;
     }
     
     public bool IsPathValid(string path)
@@ -33,13 +37,47 @@ public class PageReader
     /// <summary>
     /// Returns a list of pages based on their GUID. They are sorted by version number.
     /// </summary>
-    public bool TryGetPagesFromGuid(Guid guid, [NotNullWhen(true)] out List<Page>? page)
+    public bool TryGetPagesFromGuid(Guid guid, [NotNullWhen(true)] out List<Page>? page, bool collectStats = true)
     {
-        page = _context.Pages
+        var pages = _context.Pages
             .Include(p => p.Flags)
             .Where(p => p.PageGuid == guid)
             .OrderByDescending(p => p.Version)
             .ToList();
+
+        page = pages;
+        
+        // Page stats
+        var account = _authHelper.FetchAccount().Result;
+        if (page.Count > 0 && collectStats)
+        {
+            var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == pages![0].PageGuid);
+            var uniqueAccountPageKey = account?.Id.ToString() + page[0].PageGuid.ToString();
+            if (pageStats != null)
+            {
+                // If the memory cache contains the key, the user has already viewed the page
+                if (!_cache.TryGetValue(uniqueAccountPageKey, out _))
+                {
+                    // If the user has not viewed the page, we add the key to the cache
+                    _cache.Set(uniqueAccountPageKey, true, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(1)
+                    });
+                    pageStats.Views++;
+                    _context.SaveChanges();
+                }
+            } else {
+                // If the page stats are null, we create a new entry
+                pageStats = new PageStat()
+                {
+                    PageId = page[0].PageGuid,
+                    Views = 1
+                };
+                _context.PageStats.Add(pageStats);
+                _context.SaveChanges();
+            }
+        }
+        
         return page.Count > 0;
     }
     
@@ -49,7 +87,7 @@ public class PageReader
     /// <param name="path">The virtual path of the page.</param>
     /// <param name="page">The page if found, null otherwise.</param>
     /// <returns>True if the page was found, false otherwise.</returns>
-    public bool TryGetPageFromPath(string path, [NotNullWhen(true)] out Page? page)
+    public bool TryGetPageFromPath(string path, [NotNullWhen(true)] out Page? page, bool collectStats = true)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -71,23 +109,91 @@ public class PageReader
             return true;
         }
         
-        page = GetPageFromPath(path);
+        page = GetPageFromPath(path, collectStats);
         return page != null;
     }
     
-    private Page? GetPageFromPath(string path)
+    private Page? GetPageFromPath(string path, bool collectStats = true)
     {
-        return _context.Pages
+        var page = _context.Pages
             .Include(p => p.Flags)
             .OrderByDescending(p => p.Version)
             .FirstOrDefault(p => p.VirtualPath == path);
+
+        var account = _authHelper.FetchAccount().Result;
+        
+        if (page != null && collectStats)
+        {
+            var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == page!.PageGuid);
+            var uniqueAccountPageKey = account?.Id.ToString() + page.PageGuid.ToString();
+            if (pageStats != null)
+            {
+                // If the memory cache contains the key, the user has already viewed the page
+                if (!_cache.TryGetValue(uniqueAccountPageKey, out _))
+                {
+                    // If the user has not viewed the page, we add the key to the cache
+                    _cache.Set(uniqueAccountPageKey, true, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(1)
+                    });
+                    pageStats.Views++;
+                    _context.SaveChanges();
+                }
+            } else {
+                // If the page stats are null, we create a new entry
+                pageStats = new PageStat()
+                {
+                    PageId = page.PageGuid,
+                    Views = 1
+                };
+                _context.PageStats.Add(pageStats);
+                _context.SaveChanges();
+            }
+        }
+
+        
+        return page;
     }
     
-    public bool TryGetPageFromId(int pageId, [NotNullWhen(true)] out Page? o)
+    public bool TryGetPageFromId(int pageId, [NotNullWhen(true)] out Page? o, bool collectStats = true)
     {
-        o = _context.Pages
+        var page = _context.Pages
             .Include(p => p.Flags)
             .FirstOrDefault(p => p.Id == pageId);
+        
+        o = page;
+        
+        // Page stats
+        var account = _authHelper.FetchAccount().Result;
+        if (o != null && collectStats)
+        {
+            var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == page!.PageGuid);
+            var uniqueAccountPageKey = account?.Id.ToString() + o.PageGuid.ToString();
+            if (pageStats != null)
+            {
+                // If the memory cache contains the key, the user has already viewed the page
+                if (!_cache.TryGetValue(uniqueAccountPageKey, out _))
+                {
+                    // If the user has not viewed the page, we add the key to the cache
+                    _cache.Set(uniqueAccountPageKey, true, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(1)
+                    });
+                    pageStats.Views++;
+                    _context.SaveChanges();
+                }
+            } else {
+                // If the page stats are null, we create a new entry
+                pageStats = new PageStat()
+                {
+                    PageId = o.PageGuid,
+                    Views = 1
+                };
+                _context.PageStats.Add(pageStats);
+                _context.SaveChanges();
+            }
+        }
+        
         return o != null;
     }
     
@@ -304,7 +410,7 @@ public class PageReader
             var files = new List<Page>();
             foreach (var guid in pages)
             {
-                if (TryGetPagesFromGuid(guid, out var page))
+                if (TryGetPagesFromGuid(guid, out var page, false))
                 {
                     var item = page.First();
                     if (item.Flags.HasFlag(PageFlagType.Unlisted))

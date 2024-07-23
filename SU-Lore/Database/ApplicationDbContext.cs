@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SU_Lore.Database.Models;
 
 namespace SU_Lore.Database;
 
@@ -39,9 +40,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Id);
         });
         
+        modelBuilder.Entity<PageStat>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id);
+        });
+        
         modelBuilder.Entity<Models.Accounts.Account>().ToTable("Accounts");
         modelBuilder.Entity<Models.Pages.Page>().ToTable("Pages");
         modelBuilder.Entity<Models.File>().ToTable("Files");
+        modelBuilder.Entity<PageStat>().ToTable("PageStats");
     }
     
     /// <summary>
@@ -58,4 +66,6 @@ public class ApplicationDbContext : DbContext
     /// The uploaded files in the database.
     /// </summary>
     public DbSet<Models.File> Files { get; set; }
+    
+    public DbSet<PageStat> PageStats { get; set; }
 }
