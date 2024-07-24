@@ -16,7 +16,6 @@ public class ResourceController : Controller
     private readonly ApplicationDbContext _context;
     private readonly AuthenticationHelper _authHelper;
     private readonly IMemoryCache _cache;
-    
     public ResourceController(ApplicationDbContext context, AuthenticationHelper authHelper, IMemoryCache cache)
     {
         _context = context;
@@ -36,10 +35,16 @@ public class ResourceController : Controller
             return NotFound();
         }
         
-        _cache.TryGetValue(path, out File? cachedFile);
-        if (cachedFile != null)
+        var tempLocation = GetTemporaryFilePath(path);
+        // Check if the file is on disk
+        if (System.IO.File.Exists(tempLocation))
         {
-            return File(cachedFile.Data, cachedFile.MimeType);
+            // ok cool, now we check the memory cache in order to get the mime type
+            if (_cache.TryGetValue(path, out string? mimeType))
+            {
+                return PhysicalFile(tempLocation, mimeType, enableRangeProcessing: true);
+            }
+            // Shrug, we'll just read the file from the DB again
         }
         
         var file =_context.Files.FirstOrDefault(f => f.Name + f.Extension == path);
@@ -48,12 +53,13 @@ public class ResourceController : Controller
             return NotFound();
         }
         
-        _cache.Set(path, file, new MemoryCacheEntryOptions()
+        WriteByteArrayToTemporaryFile(file.Data, path);
+        _cache.Set(path, file.MimeType, new MemoryCacheEntryOptions()
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+            Priority = CacheItemPriority.NeverRemove,
         });
-        
-        return File(file.Data, file.MimeType);
+
+        return PhysicalFile(tempLocation, file.MimeType, enableRangeProcessing: true);
     }
     
     [HttpPut]
@@ -121,5 +127,23 @@ public class ResourceController : Controller
         await _context.SaveChangesAsync();
         
         return Ok();
+    }
+    
+    private string GetTemporaryFilePath(string path)
+    {
+        return Path.Combine(Path.GetTempPath(), path);
+    }
+    
+    private async void WriteByteArrayToTemporaryFile(byte[] data, string path)
+    {
+        var cacheLocation = Path.Combine(Path.GetTempPath(), path);
+        // Ensure the path is only a file name.
+        var pathParts = path.Split("/");
+        if (pathParts.Length > 1)
+        {
+            throw new Exception("The path cannot contain slashes.");
+        }
+        
+        await System.IO.File.WriteAllBytesAsync(cacheLocation, data);
     }
 }
