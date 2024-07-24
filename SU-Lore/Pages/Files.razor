@@ -37,9 +37,14 @@
                 <input type="file" name="file" id="fileInput"/>
                 <button type="submit" class="button">Upload</button>
             </form>
+            <div id="uploadProgress" style="background-color: #4CAF50; height: 24px; width: 0;"></div>
+            <div id="processingMessage" style="display: none;">Server is processing...</div>
         }
         <div class="content filelist" id="content">
-            @foreach (var file in DbContext.Files.Include(file => file.UploadedBy).ToList())
+            @foreach (var file in DbContext.Files
+                          .Include(f => f.UploadedBy)
+                          .Select(f => new { f.Name, f.Extension, f.Size, f.UploadedAt, f.UploadedBy })
+                          .ToList())
             {
                 <div class="file">
                     <span>

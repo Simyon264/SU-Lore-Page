@@ -138,20 +138,32 @@ window.start = (dotNetHelper) => {
 
             const formData = new FormData();
             formData.append("file", file);
-            fetch("/resources/", {
-                method: "PUT",
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    console.error(response);
-                    // read the body    
-                    response.text().then(text => {
-                        window.showAlert("Error", `Failed to upload file: ${text}`);
-                    });
+
+            const uploadProgress = document.getElementById("uploadProgress");
+            const processingMessage = document.getElementById("processingMessage");
+
+            const xhr = new XMLHttpRequest();
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    uploadProgress.style.width = percentComplete + '%';
+                    if (percentComplete === 100) {
+                        processingMessage.style.display = 'block';
+                    }
                 }
-            });
+            };
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    processingMessage.style.display = 'none';
+                    if (xhr.status === 200) {
+                        window.location.reload();
+                    } else {
+                        window.showAlert("Error", `Failed to upload file: ${xhr.responseText}`);
+                    }
+                }
+            };
+            xhr.open('PUT', '/resources/', true);
+            xhr.send(formData);
         });
     }
 }

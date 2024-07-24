@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,11 @@ public class Startup
         services.Configure<KestrelServerOptions>(options =>
         {
             options.Limits.MaxRequestBodySize = int.MaxValue;
+        });
+        
+        services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = int.MaxValue;
         });
         
         services.AddRazorComponents()
