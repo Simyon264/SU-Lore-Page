@@ -10,7 +10,6 @@ using Serilog;
 using SU_Lore.Data.RichText;
 using SU_Lore.Database;
 using SU_Lore.Helpers;
-using SU_Lore.Middleware;
 using SU_Lore.Pages.Shared;
 
 namespace SU_Lore;
@@ -121,6 +120,8 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        app.UseHttpLogging();
+        
         app.Use((context, next) =>
         {
             // Log the request.
@@ -128,7 +129,6 @@ public class Startup
             context.Request.Scheme = "https";
             return next();
         });
-        app.UseHttpLogging();
         
         app.UseHttpsRedirection();
         
@@ -168,7 +168,5 @@ public class Startup
         {
             app.UseDeveloperExceptionPage();
         }
-        
-        app.UseMiddleware<ResponseBodyOverride>();
     }
 }
