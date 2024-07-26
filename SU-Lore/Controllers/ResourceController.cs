@@ -36,10 +36,17 @@ public class ResourceController : Controller
             return NotFound();
         }
         
-        _cache.TryGetValue(path, out File? cachedFile);
-        if (cachedFile != null)
+        HttpContext.Request.Headers.Remove("If-Modified-Since");
+        HttpContext.Request.Headers.Remove("If-None-Match");
+        
+        var tempPath = GetTempPathForFile(path);
+        
+        if (_cache.TryGetValue(path, out string? fileMimeType))
         {
-            return File(cachedFile.Data, cachedFile.MimeType);
+            if (System.IO.File.Exists(tempPath))
+            {
+                return PhysicalFile(tempPath, fileMimeType, enableRangeProcessing: true);
+            }
         }
         
         var file =_context.Files.FirstOrDefault(f => f.Name + f.Extension == path);
@@ -48,12 +55,13 @@ public class ResourceController : Controller
             return NotFound();
         }
         
-        _cache.Set(path, file, new MemoryCacheEntryOptions()
+        System.IO.File.WriteAllBytes(tempPath, file.Data);
+        _cache.Set(file.Name + file.Extension, file.MimeType, new MemoryCacheEntryOptions()
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+            Priority = CacheItemPriority.NeverRemove,
         });
         
-        return File(file.Data, file.MimeType);
+        return PhysicalFile(tempPath, file.MimeType, enableRangeProcessing: true);
     }
     
     [HttpPut]
@@ -121,5 +129,20 @@ public class ResourceController : Controller
         await _context.SaveChangesAsync();
         
         return Ok();
+    }
+
+    private string GetTempPathForFile(string file)
+    {
+        if (string.IsNullOrWhiteSpace(file))
+        {
+            throw new ArgumentException("File path cannot be empty.");
+        }
+        
+        if (file.Contains("/"))
+        {
+            throw new ArgumentException("File path cannot contain slashes.");
+        }
+        
+        return Path.Combine(Path.GetTempPath(), file);
     }
 }
