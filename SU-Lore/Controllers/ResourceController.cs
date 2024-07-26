@@ -131,7 +131,7 @@ public class ResourceController : Controller
         return Ok();
     }
 
-    private string GetTempPathForFile(string file)
+    public static string GetTempPathForFile(string file)
     {
         if (string.IsNullOrWhiteSpace(file))
         {

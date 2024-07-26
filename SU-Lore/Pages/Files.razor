@@ -3,6 +3,7 @@
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Extensions.Caching.Memory
 @using Microsoft.JSInterop
+@using SU_Lore.Controllers
 @using SU_Lore.Database
 @using SU_Lore.Database.Models.Accounts
 @using SU_Lore.Helpers
@@ -106,6 +107,12 @@
             DbContext.Files.Remove(file);
             await DbContext.SaveChangesAsync();
             MemoryCache.Remove(file.Name + file.Extension);
+            // find the temp path
+            var tempPath = ResourceController.GetTempPathForFile(file.Name + file.Extension);
+            if (System.IO.File.Exists(tempPath))
+            {
+                System.IO.File.Delete(tempPath);
+            }
             
             JsRuntime.InvokeVoidAsync("showAlert", "Success!", "File deleted!");
         }
