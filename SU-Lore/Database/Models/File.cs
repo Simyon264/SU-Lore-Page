@@ -31,11 +31,6 @@ public class File
     public required string MimeType { get; set; }
     
     /// <summary>
-    /// The data of the file. This is the actual file content.
-    /// </summary>
-    public required byte[] Data { get; set; }
-    
-    /// <summary>
     /// The size of the file in bytes.
     /// </summary>
     public required long Size { get; set; }
@@ -50,4 +45,22 @@ public class File
     /// </summary>
     [ForeignKey("Account")]
     public required Account UploadedBy { get; set; }
+    
+    /// <summary>
+    /// The chunks that make up this file. This is used for large files that are split into smaller chunks.
+    /// Defaults to 1024 * 1024 * 10 bytes (10MB).
+    /// </summary>
+    public int ChunkSize { get; set; } = 1024 * 1024 * 10;
+}
+
+[PrimaryKey("Id")]
+[Index(nameof(FileId))]
+public class FileChunk
+{
+    public int Id { get; set; }
+    public required int FileId { get; set; }
+    
+    public required int ChunkNumber { get; set; }
+    
+    public required byte[] Data { get; set; }
 }

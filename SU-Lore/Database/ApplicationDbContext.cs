@@ -54,11 +54,19 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Hex).IsUnique();
         });
         
+        modelBuilder.Entity<FileChunk>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id);
+            entity.HasIndex(e => e.FileId);
+        });
+        
         modelBuilder.Entity<Models.Accounts.Account>().ToTable("Accounts");
         modelBuilder.Entity<Models.Pages.Page>().ToTable("Pages");
         modelBuilder.Entity<Models.File>().ToTable("Files");
         modelBuilder.Entity<PageStat>().ToTable("PageStats");
         modelBuilder.Entity<Color>().ToTable("Colors");
+        modelBuilder.Entity<FileChunk>().ToTable("FileChunks");
     }
     
     /// <summary>
@@ -79,4 +87,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<PageStat> PageStats { get; set; }
     
     public DbSet<Color> Colors { get; set; }
+    
+    public DbSet<FileChunk> FileChunks { get; set; }
 }

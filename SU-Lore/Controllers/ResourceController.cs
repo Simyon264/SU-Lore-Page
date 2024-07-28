@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Serilog;
 using SU_Lore.Data;
 using SU_Lore.Database;
+using SU_Lore.Database.Models;
 using SU_Lore.Database.Models.Accounts;
 using SU_Lore.Helpers;
 using File = SU_Lore.Database.Models.File;
@@ -55,7 +57,13 @@ public class ResourceController : Controller
             return NotFound();
         }
         
-        System.IO.File.WriteAllBytes(tempPath, file.Data);
+        var fullFile = RetrieveFileFromDatabase(file);
+        if (fullFile.Length == 0)
+        {
+            return StatusCode(500, "Failed to retrieve file from database. The file is empty.");
+        }
+        
+        System.IO.File.WriteAllBytes(tempPath, fullFile);
         _cache.Set(file.Name + file.Extension, file.MimeType, new MemoryCacheEntryOptions()
         {
             Priority = CacheItemPriority.NeverRemove,
@@ -107,7 +115,7 @@ public class ResourceController : Controller
         var existingFile = _context.Files.FirstOrDefault(f => f.Name + f.Extension == path.ToString());
         if (existingFile != null)
         {
-            return Conflict("A file with the same name already exists. PATCH, DELETE or pick a different name.");
+            return Conflict("A file with the same name already exists.");
         }
         
         var ms = new MemoryStream();
@@ -119,7 +127,6 @@ public class ResourceController : Controller
             Name = Path.GetFileNameWithoutExtension(path.ToString()),
             Extension = Path.GetExtension(path.ToString()),
             MimeType = file.ContentType,
-            Data = data,
             Size = file.Length,
             UploadedAt = DateTime.UtcNow,
             UploadedBy = account
@@ -127,6 +134,19 @@ public class ResourceController : Controller
         
         _context.Files.Add(newFile);
         await _context.SaveChangesAsync();
+
+        try
+        {
+            StoreFileInDatabase(newFile, data);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Failed to store file in database.");
+            // Delete the file from the database.
+            _context.Files.Remove(newFile);
+            await _context.SaveChangesAsync();
+            return StatusCode(500, "Failed to store file in database.");
+        }
         
         return Ok();
     }
@@ -144,5 +164,44 @@ public class ResourceController : Controller
         }
         
         return Path.Combine(Path.GetTempPath(), file);
+    }
+    
+    private void StoreFileInDatabase(File file, byte[] fullFile)
+    {
+        var chunkSize = file.ChunkSize;
+        var totalChunks = (fullFile.Length + chunkSize - 1) / chunkSize;
+        
+        for (var i = 0; i < totalChunks; i++)
+        {
+            var offset = i * chunkSize;
+            var length = Math.Min(chunkSize, fullFile.Length - offset);
+            var chunkData = new byte[length];
+            Array.Copy(fullFile, offset, chunkData, 0, length);
+
+            var chunk = new FileChunk
+            {
+                FileId = file.Id,
+                ChunkNumber = i,
+                Data = chunkData
+            };
+            _context.FileChunks.Add(chunk);
+        }
+        
+        _context.SaveChanges();
+    }
+    
+    private byte[] RetrieveFileFromDatabase(File file)
+    {
+        var chunks = _context.FileChunks.Where(c => c.FileId == file.Id).OrderBy(c => c.ChunkNumber).ToList();
+        var fullFile = new byte[file.Size];
+        
+        var offset = 0;
+        foreach (var chunk in chunks)
+        {
+            Array.Copy(chunk.Data, 0, fullFile, offset, chunk.Data.Length);
+            offset += chunk.Data.Length;
+        }
+        
+        return fullFile;
     }
 }

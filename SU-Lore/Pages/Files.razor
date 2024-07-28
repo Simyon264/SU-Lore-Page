@@ -104,6 +104,7 @@
         
         if (file.UploadedBy.Id == account.Id || account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin, Role.Moderator))
         {
+            DbContext.FileChunks.RemoveRange(DbContext.FileChunks.Where(chunk => chunk.FileId == file.Id));
             DbContext.Files.Remove(file);
             await DbContext.SaveChangesAsync();
             MemoryCache.Remove(file.Name + file.Extension);
