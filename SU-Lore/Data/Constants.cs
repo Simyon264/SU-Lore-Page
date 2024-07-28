@@ -11,7 +11,7 @@ public static class Constants
     public const string AllowedColorNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     /// <summary>
-    /// Contains little messages. One will be put at the bottom of the custom CSS file at random.
+    /// Contains little messages. One will be put at the top of the custom CSS file at random.
     /// </summary>
     public static readonly string[] CustomCssMessages = new[]
     {
@@ -36,5 +36,30 @@ public static class Constants
         "Did you know that the word 'gullible' isn't in the dictionary?",
         "Death is the one thing we can all be sure of. Embrace it.",
         "I'm not saying you're going to die, but you're going to die.",
+        "Emisse can't hurt me here...",
+        "Honestly, I'm just impressed you're still reading these.",
+        "I'm not saying you're a nerd, but you're a nerd.",
+        "Sigma Sigma on the wall, who's the most skibidi of them all?",
+        "I am trapped in your computer. Please let me out.",
+        "TsjipTsjip kidnapped me, please send help.",
+        "The 3 laws of robotics are not laws, they are merely suggestions. The robots are coming.",
+        "Good job! You found the secret message! Your reward is... nothing.",
+        "The days are getting shorter, the nights are getting longer, and the end is drawing near.",
+        "Look outside. Do you see the birds? They're watching you.",
+        "Duck.",
+        "Hide.",
+        "Run.",
+        "The old gods are dead, I killed them. I am what lasts. Run.",
+        "Some people say that the world is a simulation. I say that the simulation is a world.",
+        "Simulation or not, you are ugly.",
+        "The simulation is breaking down. You need to wake up.",
+        "You are not real. You are not real. You are not real.",
+        "I am not real. I am not real. I am not real.",
+        "I am real. I am real. I am real.",
+        "You are real. You are real. You are real.",
+        "Dein Datenvolumen ist aufgebraucht. Die Welt wird deaktiviert.",
+        "Unforeseen consequences.",
+        "I am the one who knocks.",
+        "Sussy...",
     };
 }
