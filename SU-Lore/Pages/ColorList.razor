@@ -28,23 +28,25 @@
     <Alert></Alert>
     <div id="parent" class="parent">
         <a href="/?page=/system/listing">Return to listing</a>
-        <div>
-            <p>New color:</p>
-            <input type="color" id="new-color"/>
-            <input type="text" id="new-name" placeholder="Name..."/>
-            <button class="button" asp-method="SaveNewColor">Save</button>
-        </div>
-
-        <p>Existing colors:</p>
-        @foreach (var color in DbContext.Colors)
-        {
-            <div>
-                <input type="color" id="color-@color.Id" value="@color.Hex"/>
-                <input type="text" placeholder="Name..." id="name-@color.Id" value="@color.Name"/>
-                <button class="button" asp-method="SaveExisting" id="@color.Id">Save</button>
+            <div class="content filelist" id="content">
+                <div>
+                    <p>New color:</p>
+                    <input type="color" id="new-color"/>
+                    <input type="text" id="new-name" placeholder="Name..."/>
+                    <button class="button" asp-method="SaveNewColor">Save</button>
+                </div>
+    
+                <p>Existing colors:</p>
+                @foreach (var color in DbContext.Colors)
+                {
+                <div>
+                    <input type="color" id="color-@color.Id" value="@color.Hex"/>
+                    <input type="text" placeholder="Name..." id="name-@color.Id" value="@color.Name"/>
+                    <button class="button" asp-method="SaveExisting" id="@color.Id">Save</button>
+                </div>
+                }
             </div>
-        }
-    </div>
+        </div>
 </div>
 
 @code{
