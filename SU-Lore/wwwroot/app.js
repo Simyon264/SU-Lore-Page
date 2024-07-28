@@ -129,7 +129,7 @@ window.start = (dotNetHelper) => {
                         const idButInt = parseInt(id);
                         dotNetHelper.invokeMethodAsync("SaveExisting", idButInt, color, name);
                         break;
-                    case "Default":
+                    default:
                         dotNetHelper.invokeMethodAsync("CallAspMethod", method);
                         break;
                         
