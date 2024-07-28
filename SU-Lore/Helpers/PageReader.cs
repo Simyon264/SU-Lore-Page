@@ -451,6 +451,7 @@ public class PageReader
         sb.AppendLine("[button=/system/link/editor;NEW ENTRY]");
         sb.AppendLine("[button=/system/overview;CREW OVERVIEW]");
         sb.AppendLine("[button=/system/link/files;FILE SYSTEM]");
+        sb.AppendLine("[button=/system/link/colors;COLOR PALETTES]");
         
         return sb.ToString();
     }

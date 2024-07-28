@@ -460,6 +460,10 @@ input:not([type="checkbox"])  {
     padding: 0.5rem;
 }
 
+input[type="color"] {
+    padding: unset !important;
+}
+
 .diff-insert {
     background-color: #d6ffed;
 }

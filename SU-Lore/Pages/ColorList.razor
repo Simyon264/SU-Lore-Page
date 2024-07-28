@@ -1,0 +1,194 @@
+﻿@page "/colors"
+
+@using Microsoft.JSInterop
+@using Serilog
+@using SU_Lore.Data
+@using SU_Lore.Database
+@using SU_Lore.Database.Models
+@using SU_Lore.Database.Models.Accounts
+@using SU_Lore.Helpers
+@using SU_Lore.Pages.Components
+
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JsRuntime
+@inject AuthenticationHelper AuthHelper
+@inject NavigationManager NavigationManager
+
+<div class="screen">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        <span class="header-title">
+            <span>Editing color pallets</span>
+        </span>
+    </div>
+
+    <Alert></Alert>
+    <div id="parent" class="parent">
+        <a href="/?page=/system/listing">Return to listing</a>
+        <div>
+            <p>New color:</p>
+            <input type="color" id="new-color"/>
+            <input type="text" id="new-name" placeholder="Name..."/>
+            <button class="button" asp-method="SaveNewColor">Save</button>
+        </div>
+
+        <p>Existing colors:</p>
+        @foreach (var color in DbContext.Colors)
+        {
+            <div>
+                <input type="color" id="color-@color.Id" value="@color.Hex"/>
+                <input type="text" placeholder="Name..." id="name-@color.Id" value="@color.Name"/>
+                <button class="button" asp-method="SaveExisting" id="@color.Id">Save</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code{
+    private DotNetObjectReference<ColorList>? _dotNetRef;
+    
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JsRuntime.InvokeVoidAsync("start", _dotNetRef);
+        }
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        _dotNetRef = DotNetObjectReference.Create(this);
+        return base.OnInitializedAsync();
+    }
+    
+    [JSInvokable]
+    public async void SaveNewColor(string color, string name)
+    {
+        var newColor = new Color
+        {
+            Hex = color,
+            Name = name
+        };
+        
+        var account = await AuthHelper.FetchAccount();
+        if (account == null)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "You are not logged in.");
+            return;
+        }
+        
+        if (!account.Roles.HasRole(Role.Whitelisted))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "You do not have permission to save colors.");
+            return;
+        }
+        
+        // sanity checks on color name and hex
+        if (string.IsNullOrWhiteSpace(newColor.Name))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color name cannot be empty.");
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(newColor.Hex))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color hex cannot be empty.");
+            return;
+        }
+        
+        // check if the name is already taken
+        if (DbContext.Colors.Any(c => c.Name == newColor.Name))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color name is already taken.");
+            return;
+        }
+
+        if (!newColor.Name.All(c => Constants.AllowedColorNameCharacters.Contains(c)))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color name contains invalid characters.");
+            return;
+        }
+        
+        // save the color
+        DbContext.Colors.Add(newColor);
+        try
+        {
+            await DbContext.SaveChangesAsync();
+            await JsRuntime.InvokeVoidAsync("showAlert", "Color saved", "The color has been saved.");
+            NavigationManager.NavigateTo("/colors", true);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Error while saving color");
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "An error occurred while saving the color.");
+        }
+    }
+
+    
+    [JSInvokable]
+    public async void SaveExisting(int id, string color, string name)
+    {
+        var account = await AuthHelper.FetchAccount();
+        if (account == null)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "You are not logged in.");
+            return;
+        }
+        
+        if (!account.Roles.HasRole(Role.Whitelisted))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "You do not have permission to save colors.");
+            return;
+        }
+        
+        var existingColor = DbContext.Colors.FirstOrDefault(c => c.Id == id);
+        if (existingColor == null)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color not found.");
+            return;
+        }
+        
+        // sanity checks on color name and hex
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color name cannot be empty.");
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(color))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color hex cannot be empty.");
+            return;
+        }
+        
+        // check if the name is already taken
+        if (DbContext.Colors.Any(c => c.Name == name && c.Id != id))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color name is already taken.");
+            return;
+        }
+        
+        if (!name.All(c => Constants.AllowedColorNameCharacters.Contains(c)))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "Color name contains invalid characters.");
+            return;
+        }
+        
+        // save the color
+        existingColor.Name = name;
+        existingColor.Hex = color;
+        try
+        {
+            await DbContext.SaveChangesAsync();
+            await JsRuntime.InvokeVoidAsync("showAlert", "Color saved", "The color has been saved.");
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Error while saving color");
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error while saving", "An error occurred while saving the color.");
+        }
+    }
+}

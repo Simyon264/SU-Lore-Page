@@ -46,6 +46,7 @@
                 <a class="button" href="#/system/link/history?page=@_page.PageGuid">File history</a>
                 <a class="button" asp-method="CopyLink">Get share link</a>
                 <a class="button" href="#/system/link/raw?page=@_page.Id">View raw</a>
+                <a class="button" href="#/system/link/analyze?page=@_page.PageGuid">Stats</a>
             }
         </div>
         @if (_page != null && !_page.Flags.HasFlag(PageFlagType.HideBackButton))

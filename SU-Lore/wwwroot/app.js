@@ -115,7 +115,25 @@ window.start = (dotNetHelper) => {
                     passwordContent.classList.remove("hidden");
                 }
                 
-                dotNetHelper.invokeMethodAsync("CallAspMethod", method);
+                switch (method) {
+                    case "SaveNewColor":
+                        const newColor = document.getElementById("new-color").value;
+                        const newName = document.getElementById("new-name").value;
+                        dotNetHelper.invokeMethodAsync("SaveNewColor", newColor, newName);
+                        break;
+                    case "SaveExisting":
+                        // Get the ID tag of the clicked button
+                        const id = e.target.id;
+                        const color = document.getElementById(`color-${id}`).value;
+                        const name = document.getElementById(`name-${id}`).value;
+                        const idButInt = parseInt(id);
+                        dotNetHelper.invokeMethodAsync("SaveExisting", idButInt, color, name);
+                        break;
+                    case "Default":
+                        dotNetHelper.invokeMethodAsync("CallAspMethod", method);
+                        break;
+                        
+                }
             }
             const toggleDiff = e.target.getAttribute("asp-toggle-diff");
             if (toggleDiff) {

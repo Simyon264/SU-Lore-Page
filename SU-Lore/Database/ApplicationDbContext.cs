@@ -45,11 +45,20 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id);
         });
+
+        modelBuilder.Entity<Color>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id);
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Hex).IsUnique();
+        });
         
         modelBuilder.Entity<Models.Accounts.Account>().ToTable("Accounts");
         modelBuilder.Entity<Models.Pages.Page>().ToTable("Pages");
         modelBuilder.Entity<Models.File>().ToTable("Files");
         modelBuilder.Entity<PageStat>().ToTable("PageStats");
+        modelBuilder.Entity<Color>().ToTable("Colors");
     }
     
     /// <summary>
@@ -68,4 +77,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<Models.File> Files { get; set; }
     
     public DbSet<PageStat> PageStats { get; set; }
+    
+    public DbSet<Color> Colors { get; set; }
 }
