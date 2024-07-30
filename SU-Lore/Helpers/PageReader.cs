@@ -406,6 +406,55 @@ public class PageReader
         }
         else
         {
+            // Get the 3 most recent changes
+            var recentChanges = _context.Pages
+                .Include(p => p.Flags)
+                .OrderByDescending(p => p.Id)
+                .Select(p => p.PageGuid)
+                .Take(3)
+                .Distinct()
+                .ToList();
+
+            var recentChangesPages = new List<Page>();
+            foreach (var recentChange in recentChanges)
+            {
+                if (TryGetPagesFromGuid(recentChange, out var page, false))
+                {
+                    recentChangesPages.Add(page.First());
+                }
+            }
+            
+            recentChangesPages = recentChangesPages.OrderByDescending(p => p.UpdatedAt).ToList();
+            
+            sb.AppendLine("[color=info]Recent changes:[/color]");
+            foreach (var page in recentChangesPages)
+            {
+                if (page.Flags.HasFlag(PageFlagType.Unlisted))
+                {
+                    if (account == null)
+                    {
+                        continue;
+                    }
+                    
+                    if (!account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
+                    {
+                        continue;
+                    }
+                    
+                    if (page.CreatedBy != account.Id)
+                    {
+                        // not the creator
+                        continue;
+                    }
+                }
+                
+                sb.AppendLine($"[color=info]{page.Title}[/color] - {page.UpdatedAt:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"[button={page.VirtualPath};VIEW]");
+            }
+            
+            sb.AppendLine();
+            sb.AppendLine("[color=info]All files:[/color]");
+            
             // Get the latest version of each page
             var files = new List<Page>();
             foreach (var guid in pages)
