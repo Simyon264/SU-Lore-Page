@@ -7,6 +7,9 @@ public static class Constants
     {
         ".png", ".jpg", ".jpeg", ".gif", ".mp3", ".wav", ".ogg", ".webm", ".mp4"
     };
+    public const bool ExtensionLimitEnabled = false;
+    
+    public const bool FileUploadEnabled = true;
     
     public const string AllowedColorNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 

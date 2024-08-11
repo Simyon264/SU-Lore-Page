@@ -76,6 +76,11 @@ public class ResourceController : Controller
     [Route("/resources/")]
     public async Task<IActionResult> UploadResource(IFormCollection? form)
     {
+        if (!Constants.FileUploadEnabled)
+        {
+            return StatusCode(403, "File uploads are disabled.");
+        }
+        
         if (form == null)
         {
             return BadRequest("No file was uploaded.");
@@ -95,7 +100,7 @@ public class ResourceController : Controller
         }
         
         // Check if the file extension is allowed.
-        if (!Constants.AllowedExtensions.Contains(Path.GetExtension(file.FileName)))
+        if (Constants.ExtensionLimitEnabled && !Constants.AllowedExtensions.Contains(Path.GetExtension(file.FileName)))
         {
             return BadRequest("The file extension is not allowed; Allowed extensions: " + string.Join(", ", Constants.AllowedExtensions));
         }
