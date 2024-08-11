@@ -412,14 +412,10 @@ public class PageReader
         else
         {
             // Get the 3 most recent changes
-            var recentChanges = _context.Pages
-                .Include(p => p.Flags)
-                .OrderByDescending(p => p.Id)
-                .Select(p => p.PageGuid)
-                .Distinct()
-                .Take(3)
+            var recentChanges = _context.Database.SqlQueryRaw<Guid>(
+                "SELECT \"PageGuid\" FROM( SELECT *, ROW_NUMBER() OVER (PARTITION BY \"PageGuid\" ORDER BY \"Id\" DESC) AS rn FROM \"Pages\") AS sub WHERE rn = 1 ORDER BY \"Id\" DESC LIMIT 3; ")
                 .ToList();
-
+            
             var recentChangesPages = new List<Page>();
             foreach (var recentChange in recentChanges)
             {
@@ -469,12 +465,7 @@ public class PageReader
                             continue;
                         }
                         
-                        if (!account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
-                        {
-                            continue;
-                        }
-                        
-                        if (item.CreatedBy != account.Id)
+                        if (item.CreatedBy != account.Id && !account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
                         {
                             // not the creator
                             continue;
