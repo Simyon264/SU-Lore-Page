@@ -51,6 +51,11 @@ public class File
     /// Defaults to 1024 * 1024 * 10 bytes (10MB).
     /// </summary>
     public int ChunkSize { get; set; } = 1024 * 1024 * 10;
+
+    /// <summary>
+    /// Unlisted files are not shown in the public file list.
+    /// </summary>
+    public bool IsPrivate { get; set; } = false;
 }
 
 [PrimaryKey("Id")]

@@ -25,7 +25,7 @@ public class RawController : Controller
         [FromQuery] int page
         )
     {
-        if (!_pageService.TryGetPageFromId(page, out var pageFetched))
+        if (!_pageService.TryGetPageFromId(page, out var pageFetched, false))
         {
             return NotFound();
         }

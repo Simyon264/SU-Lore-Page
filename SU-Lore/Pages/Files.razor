@@ -36,17 +36,34 @@
         {
             <form enctype="multipart/form-data" id="uploadForm">
                 <input type="file" name="file" id="fileInput"/>
+                <br/>
+                <input type="checkbox" name="isPrivate" id="isPrivate"/>
+                <label for="isPrivate">Private</label>
+                <br/>
                 <button type="submit" class="button">Upload</button>
             </form>
             <div id="uploadProgress" style="background-color: #4CAF50; height: 24px; width: 0;"></div>
             <div id="processingMessage" style="display: none;">Server is processing...</div>
         }
         <div class="content filelist" id="content">
+            @{
+                var account = AuthHelper.FetchAccount().Result;
+            }
             @foreach (var file in DbContext.Files
                           .Include(f => f.UploadedBy)
-                          .Select(f => new { f.Name, f.Extension, f.Size, f.UploadedAt, f.UploadedBy })
                           .ToList())
             {
+                if (file.IsPrivate)
+                {
+                    if (account == null || file.UploadedBy.Id != account.Id)
+                    {
+                        if (account == null || !account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin, Role.Moderator))
+                        {
+                            continue;
+                        }
+                    }
+                }
+
                 <div class="file">
                     <span>
                         Name: @file.Name@file.Extension
@@ -54,6 +71,10 @@
                         Uploaded at: @file.UploadedAt
                         Uploaded by: @file.UploadedBy.Username
                     </span>
+                    @if (file.IsPrivate)
+                    {
+                        <p class="private">Private file; Only you can see this in the listing.</p>
+                    }
                     <a href="/resources/@(file.Name + file.Extension)" target="_blank">View</a>
                 </div>
                 <button class="button" file-manager-delete="@(file.Name + file.Extension)">Delete</button>

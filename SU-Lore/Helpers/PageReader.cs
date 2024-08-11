@@ -162,6 +162,11 @@ public class PageReader
             .FirstOrDefault(p => p.Id == pageId);
         
         o = page;
+
+        if (!collectStats)
+        {
+            return o != null;
+        }
         
         // Page stats
         var account = _authHelper.FetchAccount().Result;
@@ -411,8 +416,8 @@ public class PageReader
                 .Include(p => p.Flags)
                 .OrderByDescending(p => p.Id)
                 .Select(p => p.PageGuid)
-                .Take(3)
                 .Distinct()
+                .Take(3)
                 .ToList();
 
             var recentChangesPages = new List<Page>();
@@ -436,12 +441,7 @@ public class PageReader
                         continue;
                     }
                     
-                    if (!account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
-                    {
-                        continue;
-                    }
-                    
-                    if (page.CreatedBy != account.Id)
+                    if (page.CreatedBy != account.Id && !account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
                     {
                         // not the creator
                         continue;

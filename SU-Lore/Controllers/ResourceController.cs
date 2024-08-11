@@ -118,6 +118,8 @@ public class ResourceController : Controller
             return Conflict("A file with the same name already exists.");
         }
         
+        var isPrivate = form.ContainsKey("isPrivate") && form["isPrivate"].ToString().Equals("true", StringComparison.CurrentCultureIgnoreCase);
+        
         var ms = new MemoryStream();
         await file.CopyToAsync(ms);
         var data = ms.ToArray();
@@ -129,7 +131,8 @@ public class ResourceController : Controller
             MimeType = file.ContentType,
             Size = file.Length,
             UploadedAt = DateTime.UtcNow,
-            UploadedBy = account
+            UploadedBy = account,
+            IsPrivate = isPrivate
         };
         
         _context.Files.Add(newFile);

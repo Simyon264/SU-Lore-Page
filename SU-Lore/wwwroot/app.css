@@ -555,3 +555,8 @@ video {
 .overflow {
     overflow-x: auto;
 }
+
+.private {
+    color: var(--fg-error);
+    text-shadow: var(--glow-error);
+}

@@ -153,9 +153,11 @@ window.start = (dotNetHelper) => {
                 return;
             }
             const file = fileInput.files[0];
+            const isPrivate = document.getElementById("isPrivate").checked;
 
             const formData = new FormData();
             formData.append("file", file);
+            formData.append("isPrivate", isPrivate);
 
             const uploadProgress = document.getElementById("uploadProgress");
             const processingMessage = document.getElementById("processingMessage");
