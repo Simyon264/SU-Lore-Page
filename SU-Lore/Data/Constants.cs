@@ -8,9 +8,9 @@ public static class Constants
         ".png", ".jpg", ".jpeg", ".gif", ".mp3", ".wav", ".ogg", ".webm", ".mp4"
     };
     public const bool ExtensionLimitEnabled = false;
-    
+
     public const bool FileUploadEnabled = true;
-    
+
     public const string AllowedColorNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     /// <summary>
@@ -64,5 +64,28 @@ public static class Constants
         "Unforeseen consequences.",
         "I am the one who knocks.",
         "Sussy...",
+    };
+
+    public static readonly HashSet<string> DisallowedProperties = new HashSet<string>
+    {
+        "behavior",
+        "expression",
+        "javascript",
+        "url",
+        "content",
+        "unicode-bidi",
+        "direction",
+    };
+
+    public static readonly string[] DisallowedPatterns = new string[]
+    {
+        @"expression\s*\(",
+        @"url\s*\(\s*(javascript:|data:)",
+        @"@import",
+        @"@font-face",
+        @"@keyframes",
+        @"@supports",
+        @"@media",
+        @"<\s*style[^>]*>[^<]*<\s*/\s*style\s*>"
     };
 }

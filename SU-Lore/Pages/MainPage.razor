@@ -18,10 +18,15 @@
 @inject IHttpContextAccessor HttpContextAccessor
 @inject AuthenticationHelper AuthHelper
 
+@if(_page != null && _page.Flags.HasFlag(PageFlagType.CustomCss))
+{
+    <link rel="stylesheet" href="/page_custom.css?pageId=@_page.Id" />
+}
+
 <div class="screen">
     <audio src="resources/text.mp3" id="text_audio"></audio>
     <div id="audio_container" class="audio_container">
-        
+
     </div>
     <div class="header">
         <span class="logo color-cc">
@@ -83,14 +88,14 @@
 @code {
     private Page? _page;
     private Page? _passwordCachePage;
-    
+
     private Account? _account;
 
     // This is the actual content that is being displayed.
     private PageStatus _status = new PageStatus();
     private DotNetObjectReference<MainPage>? _dotNetRef;
     private CancellationTokenSource _cts = new CancellationTokenSource();
-    
+
     protected override void OnInitialized()
     {
         base.OnInitialized();
@@ -169,14 +174,14 @@
         link = link.Replace(" ", "%20");
         JsRuntime.InvokeVoidAsync("copyToClipboard", link);
     }
-    
+
     [JSInvokable]
     public void SetInstant(bool instant)
     {
         _status.CurrentTextSpeed = instant ? 0 : Constants.DefaultTextSpeed;
         _status.IsInstantText = instant;
     }
-    
+
     private void Return(MouseEventArgs obj)
     {
         if (_status.PageStack.Count == 0)
@@ -204,7 +209,7 @@
         {
             return Task.CompletedTask;
         }
-        
+
         // This is where we will load the page content.
         var uri = new Uri(NavigationManager.Uri);
         var query = uri.Query;
@@ -232,19 +237,19 @@
         {
             pageToLoad = "/system/notfound";
         }
-        
+
         // js stupid
         if (pageToLoad != null && pageToLoad.Contains("%20"))
         {
             pageToLoad = pageToLoad.Replace("%20", " ");
         }
-        
+
         if (!PageReader.TryGetPageFromPath(pageToLoad!, out var page))
         {
             Log.Error("Failed to load page {Page}", pageToLoad); // Probably a db error of some sort.
             return Task.CompletedTask;
         }
-        
+
         if (page.Flags.HasFlag(PageFlagType.PasswordProtected)) // If the page is password protected, we will ask for a password.
         {
             _passwordCachePage = page;
@@ -252,11 +257,11 @@
             JsRuntime.InvokeVoidAsync("showPasswordPrompt", page.PageGuid.ToString());
             return Task.CompletedTask;
         }
-        
+
         LoadContent(page);
         return Task.CompletedTask;
     }
-    
+
     private async void LoadContent(Page page, bool saveToStack = true)
     {
         await _cts.CancelAsync();
@@ -265,7 +270,7 @@
         {
             _status.PageStack.Push(_page?.VirtualPath ?? "/system/listing");
         }
-        
+
         _page = page;
         var sw = Stopwatch.StartNew();
         var content = (await RichTextParser.Parse(page.Content)).Value;
@@ -275,7 +280,7 @@
         {
             _status.CurrentTextSpeed = 0;
         }
-        
+
         _status.Content = new MarkupString("");
         StateHasChanged();
 
@@ -288,7 +293,7 @@
             for (var i = 0; i < content.Length; i++)
             {
                 var exit = false;
-                
+
                 if (_cts.Token.IsCancellationRequested)
                 {
                     return;
@@ -297,7 +302,7 @@
                 if (_status.IsInstantText)
                 {
                     // straight up just render the whole thing.
-                    
+
                     // first, remove any tags.
                     content = content.Replace("[speed=default]", "");
                     // regex remove [speed=number]
@@ -308,15 +313,15 @@
                     content = System.Text.RegularExpressions.Regex.Replace(content, @"\[play=[a-zA-Z0-9.]+\]", "");
                     // regex remove [load=page]
                     content = System.Text.RegularExpressions.Regex.Replace(content, @"\[load=[a-zA-Z0-9]+\]", "");
-                    
+
                     _status.Content = new MarkupString(content);
                     StateHasChanged();
                     return;
                 }
-                
+
                 var c = content[i];
                 contentString += c;
-    
+
                 if (c == '[')
                 {
                     var tag = "";
@@ -326,30 +331,30 @@
                         {
                             break;
                         }
-    
+
                         if (content[i1] == '\n')
                         {
                             break;
                         }
-    
+
                         tag += content[i1];
                     }
-    
+
                     if (tag != "")
                     {
                         i += tag.Length;
                         contentString = contentString.Remove(contentString.Length - 1);
-    
+
                         var tagParts = tag.Split('=');
                         var tagName = tagParts[0].Replace("[", "");
                         var tagValue = tagParts.Length > 1 ? tagParts[1].Replace("]", "") : "";
-    
+
                         switch (tagName)
                         {
                             case "speed":
                                 if (_status.IsInstantText) // If the text is instant, we will ignore the speed tag.
                                     break;
-                                
+
                                 if (int.TryParse(tagValue, out var speed))
                                 {
                                     _status.CurrentTextSpeed = speed;
@@ -365,12 +370,12 @@
                                         throw new InvalidOperationException($"Invalid speed: {tagValue}");
                                     }
                                 }
-    
+
                                 break;
                             case "delay":
                                 if (_status.IsInstantText) // If the text is instant, we will ignore the delay tag.
                                     break;
-                                
+
                                 if (int.TryParse(tagValue, out var delay))
                                 {
                                     await Task.Delay(delay);
@@ -382,7 +387,7 @@
                                 break;
                             case "play":
                                 // This shit will not sound good with instant on
-                                if (_status.IsInstantText) 
+                                if (_status.IsInstantText)
                                     break;
                                 await JsRuntime.InvokeVoidAsync("playAudio",tagValue);
                                 break;
@@ -391,7 +396,7 @@
                                 loadAfterFinish = tagValue;
                                 _status.PageStack.Clear();
                                 break;
-    
+
                             default:
                                 i -= tag.Length; // Go back to the start of the tag.
                                 contentString += c;
@@ -401,16 +406,16 @@
                         }
                     }
                 }
-    
+
                 if (exit)
                     break;
-    
+
                 _status.Content = new MarkupString(contentString);
                 if (page.Flags.HasFlag(PageFlagType.ScrollToBottom))
                 {
                     await JsRuntime.InvokeVoidAsync("scrollToBottom");
                 }
-    
+
                 // certain actions are just stupid with a 0 speed, since they are instant.
                 if (_status.CurrentTextSpeed > 0)
                 {
@@ -427,13 +432,13 @@
         }
 
         StateHasChanged();
-        
+
         if (!string.IsNullOrEmpty(loadAfterFinish))
         {
             LoadFromString(loadAfterFinish);
         }
     }
-    
+
     [JSInvokable]
     public void TryPassword(string pageGuid, string password) // This is called from the password prompt.
     {
@@ -442,7 +447,7 @@
             Log.Error("Failed to parse guid {Guid}", pageGuid);
             return;
         }
-        
+
         if (!PageReader.TryGetPagesFromGuid(guid, out var pages))
         {
             Log.Error("Failed to get page from guid {Guid}", guid);
@@ -456,7 +461,7 @@
             Log.Error("Failed to get password flag for page {Page}", page.PageGuid);
             return;
         }
-        
+
         if (passwordFlag.Value == password)
         {
             LoadContent(page);
@@ -469,25 +474,25 @@
             JsRuntime.InvokeVoidAsync("showPasswordPrompt", page.PageGuid.ToString());
         }
     }
-    
+
     [JSInvokable]
     public void LoadFromString(string path, bool saveToStack = true)
     {
         // ok stupid BUT JS converts stuff like spaces to %20, so we need to convert it back.
         path = path.Replace("%20", " ");
-        
+
         var pageToLoad = path;
         if (!PageReader.IsPathValid(path)) // If the path is not valid, we will load the 404 page.
         {
             pageToLoad = "/system/notfound";
         }
-        
+
         if (!PageReader.TryGetPageFromPath(pageToLoad, out var page))
         {
             Log.Error("Failed to load page {Page}", path); // Probably a db error of some sort.
             return;
         }
-        
+
         if (page.Flags.HasFlag(PageFlagType.PasswordProtected)) // If the page is password protected, we will ask for a password.
         {
             _passwordCachePage = page;
@@ -495,7 +500,7 @@
             JsRuntime.InvokeVoidAsync("showPasswordPrompt", page.PageGuid.ToString());
             return;
         }
-        
+
         LoadContent(page, saveToStack);
     }
 }

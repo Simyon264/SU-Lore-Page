@@ -38,10 +38,10 @@ code {
     --glow-bloodred: 0 0 3px #ff0000cc;
     --fg-yellow: #ffff69;
     --glow-yellow: 0 0 3px #f6f656cc;
-    
+
     --fg-command: #3180e6;
     --glow-command: 0 0 3px #3180e6cc;
-    
+
     --fg-science: #ff00ff;
     --glow-science: 0 0 3px #ff00ffcc;
     --fg-cargo: #d37700;
@@ -52,11 +52,11 @@ code {
     --glow-medical: 0 0 3px #00ffffcc;
     --fg-security: #ff0000;
     --glow-security: 0 0 3px #ff0000cc;
-    
+
     --fg-darkgreen: #068306;
     --glow-darkgreen: 0 0 3px #068306cc;
-    
-    
+
+
     --link-underline-color: #43acff;
 
     background-color: black;
@@ -404,8 +404,8 @@ button::before, button::after {
     border: none;
     resize: none;
     overflow: auto;
-    
-    /* Reapply the font-family (why does it not inherit?) */ 
+
+    /* Reapply the font-family (why does it not inherit?) */
     font-family: 'Noto Sans Mono', monospace;
     font-size: 14pt;
     font-weight: normal;
@@ -419,7 +419,7 @@ button::before, button::after {
 
 .parent {
     all: inherit;
-    
+
     box-shadow: none;
 }
 
@@ -427,6 +427,7 @@ button::before, button::after {
     padding: 0.5rem 1ch;
     background-color: var(--bg);
     color: var(--fg);
+    overflow: auto;
 }
 
 .property {
