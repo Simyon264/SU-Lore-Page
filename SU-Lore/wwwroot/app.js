@@ -125,7 +125,7 @@ window.start = (dotNetHelper) => {
                 }
 
                 if (e.target.classList.contains("save-page")) {
-                    dotNetHelper.invokeMethodAsync("SavePage");
+                    dotNetHelper.invokeMethodAsync("CallAspMethod", "SavePage");
                     console.log("Sending save page")
                 } else {
                     dotNetHelper.invokeMethodAsync("CallAspMethod", "ToggleProperties");
