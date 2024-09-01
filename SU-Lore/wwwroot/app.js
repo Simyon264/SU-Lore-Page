@@ -58,7 +58,7 @@ window.start = (dotNetHelper) => {
             }
         });
     }
-    
+
     // create event listener for any clicks on anchor tags
     document.addEventListener("click", function (e) {
         if (e.target.tagName === "A") {
@@ -79,20 +79,20 @@ window.start = (dotNetHelper) => {
                 dotNetHelper.invokeMethodAsync("CallAspMethod", method);
                 return;
             }
-            
+
             // need to get only the part AFTER the #
             let id = e.target.href.split("#")[1];
-            
+
             // If we start with /system/link/ then we redirect to what comes after the third slash
             if (id.startsWith("/system/link/")) {
                 id = id.split("/").slice(3).join("/");
                 window.location.href = id;
                 return;
             }
-            
+
             // We also remove the href from our current location
             window.history.pushState("", "", ``);
-            
+
             dotNetHelper.invokeMethodAsync("LoadFromString", id, true);
         } else if (e.target.tagName === "BUTTON") {
             const deleteAtt = e.target.getAttribute("file-manager-delete")
@@ -101,7 +101,39 @@ window.start = (dotNetHelper) => {
                 dotNetHelper.invokeMethodAsync("DeleteFile", deleteAtt);
                 return;
             }
-            
+
+            if (e.target.classList.contains("page-properties") || e.target.classList.contains("save-page")) {
+                e.preventDefault();
+                // Is there a div with the class properties? If yes, we are on the properties page and want to close it
+                const properties = document.getElementById("properties");
+                if (properties) {
+                    const elements = document.getElementsByClassName("property");
+                    const properties = [];
+                    for (let i = 0; i < elements.length; i++) {
+                        const property = elements[i].getAttribute("property");
+                        const value = elements[i].getElementsByTagName("input")[0].checked ? true : false;
+                        const value2 = elements[i].getElementsByTagName("input")[1];
+                        properties.push({ property: property, checked: value, text: value2 ? value2.value : null });
+                    }
+
+                    dotNetHelper.invokeMethodAsync("SaveProperties", JSON.stringify(properties));
+                    console.log("Saved properties");
+                } else {
+                    const content = document.getElementById("content").value;
+                    dotNetHelper.invokeMethodAsync("SaveContent", content);
+                    console.log("Saved content");
+                }
+
+                if (e.target.classList.contains("save-page")) {
+                    dotNetHelper.invokeMethodAsync("SavePage");
+                    console.log("Sending save page")
+                } else {
+                    dotNetHelper.invokeMethodAsync("CallAspMethod", "ToggleProperties");
+                    console.log("Toggling properties")
+                }
+                return;
+            }
+
             // If the button has a asp-method attribute, we want to use that
             const method = e.target.getAttribute("asp-method");
             if (method) {
@@ -114,7 +146,7 @@ window.start = (dotNetHelper) => {
                     const passwordContent = document.getElementById("content-password")
                     passwordContent.classList.remove("hidden");
                 }
-                
+
                 switch (method) {
                     case "SaveNewColor":
                         const newColor = document.getElementById("new-color").value;
@@ -132,7 +164,7 @@ window.start = (dotNetHelper) => {
                     default:
                         dotNetHelper.invokeMethodAsync("CallAspMethod", method);
                         break;
-                        
+
                 }
             }
             const toggleDiff = e.target.getAttribute("asp-toggle-diff");
@@ -203,7 +235,7 @@ window.showAlert = (header, message) => {
     document.getElementById("alert-header").textContent = header;
     document.getElementById("alert-text").textContent = message;
     document.getElementById("parent").classList.add("hidden");
-    
+
     alert.classList.add("alert-visible");
     // Add event listener to close the alert
     document.getElementById("close-button").addEventListener("click", () => {
@@ -230,7 +262,7 @@ window.getValueFromInputElement = (id) => {
     return "";
 }
 
-window.getCheckBoxValue = (id) => { 
+window.getCheckBoxValue = (id) => {
     const element = document.getElementById(id);
     if (element) {
         return element.checked.toString();

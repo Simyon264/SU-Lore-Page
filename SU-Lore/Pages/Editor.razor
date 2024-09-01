@@ -1,5 +1,6 @@
 ﻿@page "/editor"
 
+@using System.Text.Json
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 @using Serilog
@@ -46,26 +47,28 @@
         else
         {
             <div class="button-container">
-                <button class="button" asp-method="Save">Save</button>
+                <button class="button save-page">Save</button>
                 <button class="button" asp-method="Exit">Exit without saving</button>
-                <button class="button" asp-method="ToggleProperties">Page properties</button>
+                <button class="button page-properties">Page properties</button>
                 <button class="button" asp-method="ShowRichTextHelp">Help</button>
                 <button class="button button-red" asp-method="Delete">Delete</button>
             </div>
             @if (ShowProperties)
             {
-                <div class="properties">
-                    <div class="property">
+                <div class="properties" id="properties">
+                    <div class="property" property="Title">
                         <label for="title">Title</label>
                         <br/>
+                        <input class="hidden" type="checkbox"/> <!-- stupid ass workaround -->
                         <input autocomplete="off" type="text" id="title" value="@Page?.Title" />
                     </div>
-                    <div class="property">
+                    <div class="property" property="Path">
                         <label for="path">Path</label>
                         <p>Path must be unique and cannot contain special characters.</p>
                         <p>The path is the URL that the page will be accessible from, imagine a file path like in a file system. Like windows folders.</p>
                         <p>Example: /path/to/page</p>
                         <br/>
+                        <input class="hidden" type="checkbox"/> <!-- stupid ass workaround -->
                         <input autocomplete="off" type="text" id="path" value="@Page?.VirtualPath" />
                     </div>
                     <br/>
@@ -75,8 +78,8 @@
                         var flagAttribute = flagType.GetAttribute<PageFlagAttribute>();
                         if (flagAttribute.Hidden)
                             continue;
-                        
-                    <div class="property">
+
+                    <div class="property" property="@flagType.ToString()">
                         <label for="@flagType.ToString()">@flagType.ToString()</label>
                         @if (Page?.Flags.FirstOrDefault(f => f.Type == flagType) != null)
                         {
@@ -121,14 +124,14 @@
         @"
             In order to format your text, you can use the following tags:
             [color=<color>]Text[/color] - Changes the color of the text. Replace <color> with a color name.
-            Be aware: Theres only a limited amount of colors available. 
+            Be aware: Theres only a limited amount of colors available.
             Colors: cc (Central Command Green), red, info (Blue), sys (A lighter blue), white, warn (Orange)
             [block=<color>]Text[/block] - Puts text into a block, so it adds blocks to the left side of text. Replace <color> with a color name.
             Blocks: error (red), info (blue), warn (orange)
             You can also use the following tags to create links:
             [button=/path/to/page;Button text] - Creates a button that links to the specified page. Replace /path/to/page with the path to the page.
             If you need to link to an external resource, you can use /system/link/<url> as the path. Replace <url> with the URL.
-            
+
             There are 3 kinds of media you can embed:
             [image=filename;alt text;width;height] - Embeds an image. Replace filename with the filename of the image. Alt text is the text that will be displayed if the image cannot be loaded.
             [video=filename] - Embeds a video.
@@ -150,7 +153,68 @@
     }
 
     private bool _hasConfirmedDelete = false;
-    
+
+    [JSInvokable]
+    public void SaveContent(string content)
+    {
+        Page!.Content = content;
+    }
+
+    [JSInvokable]
+    public void SaveProperties(string json)
+    {
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
+        var properties = JsonSerializer.Deserialize<EditorPageProperty[]>(json, options);
+
+        if (properties == null)
+        {
+            return;
+        }
+
+        foreach (var property in properties)
+        {
+            switch (property.Property)
+            {
+                case "Title":
+                    Page!.Title = property.Text;
+                    break;
+                case "Path":
+                    Page!.VirtualPath = property.Text;
+                    break;
+                default:
+                    var flagType = Enum.Parse<PageFlagType>(property.Property);
+                    var flag = Page!.Flags.FirstOrDefault(f => f.Type == flagType);
+                    if (flag != null)
+                    {
+                        if (!property.Checked) // Remove the flag
+                        {
+                            Page!.Flags.Remove(flag);
+                            continue;
+                        }
+
+                        flag.Value = property.Text;
+                    }
+                    else
+                    {
+                        if (!property.Checked)
+                        {
+                            continue;
+                        }
+                        Page!.Flags.Add(new PageFlag()
+                        {
+                            Type = flagType,
+                            Value = property.Text,
+                        });
+                    }
+                    break;
+            }
+        }
+    }
+
     /// <summary>
     /// Ok, so this is a thing because for some reason doing @onclick="[method]" doesn't work.
     /// </summary>
@@ -178,7 +242,7 @@
                     {
                         return;
                     }
-                    
+
                     if (!account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin) && Page!.CreatedBy != account.Id)
                     {
                         await JsRuntime.InvokeVoidAsync("showAlert", "Error", "You can only delete pages you have created.");
@@ -216,15 +280,7 @@
             case "ShowRichTextHelp":
                 await JsRuntime.InvokeVoidAsync("showAlert", "Rich text help", RichTextHelp);
                 break;
-            case "Save":
-                if (ShowProperties)
-                {
-                    ApplyProperties();
-                } else
-                {
-                    SaveContent();
-                }
-                await Task.Delay(1000); // Wait for the content to be saved
+            case "SavePage":
                 Save();
                 break;
             case "ToggleProperties":
@@ -235,25 +291,10 @@
                 break;
         }
     }
-    
-    private async void SaveContent()
-    {
-        Page!.Content = await JsRuntime.InvokeAsync<string>("getValueFromInputElement", "content");
-    }
 
     private async void ToggleProperties()
     {
-        if (ShowProperties)
-        {
-            // they could have been changed
-            ApplyProperties();
-        }
-        else
-        {
-            SaveContent(); // State change will reset the content, so we need to save it first
-        }
-        
-        await Task.Delay(100); // Wait for the content to be saved
+        //await Task.Delay(100); // Wait for the content to be saved
         ShowProperties = !ShowProperties;
         StateHasChanged();
     }
@@ -268,7 +309,7 @@
             Message = "Account not found in database.";
             return;
         }
-        
+
         if (!account.Roles.HasRole(Role.Whitelisted)) {
             Unauthorized = true;
             Message = "You are not authorized to edit or create pages.";
@@ -299,14 +340,14 @@
                     Message = "The page ID provided does not exist in the database.";
                     return;
                 }
-                
+
                 if (!account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin) && found.CreatedBy != account.Id)
                 {
                     Unauthorized = true;
                     Message = "You can only edit pages you have created.";
                     return;
                 }
-                
+
                 Page = found;
             }
             else
@@ -336,6 +377,8 @@
 
     private async void Save()
     {
+        //await Task.Delay(100); // Wait for the content to be saved
+
         try
         {
             _ = await RichTextParser.Parse(Page!.Content);
@@ -345,21 +388,21 @@
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "Your content has parsing errors. Please fix them before saving. Error: " + e.Message);
             return;
         }
-        
+
         // If the path is still the default, deny saving
         if (Page!.VirtualPath == "/path/to/page")
         {
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "You must set a path for the page before saving.");
             return;
         }
-        
+
         // Virtual path must always point to a file, so cannot end with /
         if (Page!.VirtualPath.EndsWith("/"))
         {
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path must not end with a /.");
             return;
         }
-        
+
         // must start with /
         if (!Page!.VirtualPath.StartsWith("/"))
         {
@@ -372,7 +415,7 @@
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path cannot be empty.");
             return;
         }
-        
+
         // If the path is already in use, deny saving (unless it's the same page)
         var found = DbContext.Pages.FirstOrDefault(p => p.VirtualPath == Page!.VirtualPath);
         if (found != null && found.PageGuid != Page!.PageGuid)
@@ -380,34 +423,34 @@
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path is already in use.");
             return;
         }
-        
+
         // Path can only contain A-Z, a-z, 0-9, - and / and _ AND spaces
         if (!Page!.VirtualPath.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '/' || c == '_' || c == ' '))
         {
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path can only contain A-Z, a-z, 0-9, - and / and _, and spaces.");
             return;
         }
-        
+
         // No double slashes
         if (Page!.VirtualPath.Contains("//"))
         {
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path cannot contain double slashes.");
             return;
         }
-        
+
         // Cannot start with /root
         if (Page!.VirtualPath.StartsWith("/root"))
         {
             await JsRuntime.InvokeVoidAsync("showAlert", "Error saving", "The path cannot start with /root.");
             return;
         }
-        
+
         // Finalizing the text content
         // remove any <div> and </div> inserted by the browser
         Page!.Content = Page!.Content.Replace("<div>", "").Replace("</div>", "");
         // remove any <br> and <br /> inserted by the browser and replace with \n
         Page!.Content = Page!.Content.Replace("<br>", "\n").Replace("<br />", "\n");
-        
+
         var account = await AuthHelper.FetchAccount(true);
         if (account == null)
         {
@@ -429,7 +472,7 @@
                 UpdatedBy = account.Id,
                 PageGuid = Page!.PageGuid,
             };
-            
+
             // In order to prevent " duplicate key value violates unique constraint "PK_PageFlag"" errors, we duplicate the flags, like in ApplyProperties
             var flags = new List<PageFlag>();
             foreach (var flagType in Enum.GetValues(typeof(PageFlagType)).Cast<PageFlagType>())
@@ -446,7 +489,7 @@
             }
 
             page.Flags = [..flags];
-            
+
             // Insert page into database
             DbContext.Pages.Add(page);
             await DbContext.SaveChangesAsync();
@@ -477,7 +520,7 @@
                 });
             }
         }
-        
+
         Page!.Title = title;
         Page!.VirtualPath = path;
         Page!.Flags = [..flags];
