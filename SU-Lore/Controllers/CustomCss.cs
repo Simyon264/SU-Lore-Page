@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
 using AngleSharp;
+using AngleSharp.Css;
 using AngleSharp.Css.Dom;
 using AngleSharp.Css.Parser;
 using Microsoft.AspNetCore.Mvc;
@@ -168,7 +169,7 @@ public class CustomCss : Controller
             }
         }
 
-        return stylesheet.ToCss();
+        return stylesheet.ToCss(new PrettyStyleFormatter());
     }
 
     public static string SanitizeCss(string cssInput)
