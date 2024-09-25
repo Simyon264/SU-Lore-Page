@@ -19,21 +19,23 @@ public class PageReader
     private readonly ApplicationDbContext _context;
     private readonly AuthenticationHelper _authHelper;
     private readonly NavigationManager _navigationManager;
+    private readonly RandomQuoteHelper _quoteHelper;
     private readonly IMemoryCache _cache;
-    
-    public PageReader(ApplicationDbContext context, AuthenticationHelper authHelper, NavigationManager navigationManager, IMemoryCache cache)
+
+    public PageReader(ApplicationDbContext context, AuthenticationHelper authHelper, NavigationManager navigationManager, IMemoryCache cache, RandomQuoteHelper quoteHelper)
     {
         _context = context;
         _authHelper = authHelper;
         _navigationManager = navigationManager;
         _cache = cache;
+        _quoteHelper = quoteHelper;
     }
-    
+
     public bool IsPathValid(string path)
     {
         return !string.IsNullOrWhiteSpace(path) && (path.StartsWith("/system/") || GetPageFromPath(path) != null);
     }
-    
+
     /// <summary>
     /// Returns a list of pages based on their GUID. They are sorted by version number.
     /// </summary>
@@ -46,7 +48,7 @@ public class PageReader
             .ToList();
 
         page = pages;
-        
+
         // Page stats
         var account = _authHelper.FetchAccount().Result;
         if (page.Count > 0 && collectStats)
@@ -77,10 +79,10 @@ public class PageReader
                 _context.SaveChanges();
             }
         }
-        
+
         return page.Count > 0;
     }
-    
+
     /// <summary>
     /// Retrieves a page from the database based on its virtual path. System pages are not stored in the DB and are handled separately.
     /// </summary>
@@ -108,11 +110,11 @@ public class PageReader
             page = GetSystemPage(path);
             return true;
         }
-        
+
         page = GetPageFromPath(path, collectStats);
         return page != null;
     }
-    
+
     private Page? GetPageFromPath(string path, bool collectStats = true)
     {
         var page = _context.Pages
@@ -121,7 +123,7 @@ public class PageReader
             .FirstOrDefault(p => p.VirtualPath == path);
 
         var account = _authHelper.FetchAccount().Result;
-        
+
         if (page != null && collectStats)
         {
             var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == page!.PageGuid);
@@ -151,23 +153,23 @@ public class PageReader
             }
         }
 
-        
+
         return page;
     }
-    
+
     public bool TryGetPageFromId(int pageId, [NotNullWhen(true)] out Page? o, bool collectStats = true)
     {
         var page = _context.Pages
             .Include(p => p.Flags)
             .FirstOrDefault(p => p.Id == pageId);
-        
+
         o = page;
 
         if (!collectStats)
         {
             return o != null;
         }
-        
+
         // Page stats
         var account = _authHelper.FetchAccount().Result;
         if (o != null && collectStats)
@@ -198,14 +200,98 @@ public class PageReader
                 _context.SaveChanges();
             }
         }
-        
+
         return o != null;
     }
-    
+
     private Page GetSystemPage(string path)
     {
         switch (path)
         {
+            case "/system/link/account/login":
+                _navigationManager.NavigateTo("/account/login");
+                return null;
+            case "/system/syndicate-listing":
+                return new Page()
+                {
+                    Id = -8,
+                    Content = GenerateFileListing(true).Result,
+                    Flags = new HashSet<PageFlag>()
+                    {
+                        new PageFlag()
+                        {
+                            Id = -2,
+                            Type = PageFlagType.HideBackButton,
+                            Value = ""
+                        },
+                    },
+                    Title = "Syndicate listing",
+                    Version = 0,
+                    CreatedAt = DateTime.MinValue,
+                    UpdatedAt = DateTime.MinValue,
+                    VirtualPath = "/system/syndicate-listing",
+                    CreatedBy = Guid.Empty,
+                    UpdatedBy = Guid.Empty,
+                    PageGuid = Guid.Empty
+                };
+            case "/system/emag":
+                return new Page()
+                {
+                    Id = -7,
+                    Content = Emag,
+                    Flags = new HashSet<PageFlag>()
+                    {
+                        new PageFlag()
+                        {
+                            Id = -3,
+                            Type = PageFlagType.EnterAnimation,
+                            Value = "MatrixAnimation"
+                        },
+                        new PageFlag()
+                        {
+                            Id = -4,
+                            Type = PageFlagType.HideBackButton,
+                            Value = ""
+                        },
+                        new PageFlag()
+                        {
+                            Id = -5,
+                            Type = PageFlagType.Redirect,
+                            Value = "/system/syndicate-listing"
+                        }
+                    },
+                    Title = "ERROR #ca218c",
+                    Version = 0,
+                    CreatedAt = DateTime.MinValue,
+                    UpdatedAt = DateTime.MinValue,
+                    VirtualPath = "/system/emag",
+                    CreatedBy = Guid.Empty,
+                    UpdatedBy = Guid.Empty,
+                    PageGuid = Guid.Empty
+                };
+            case "/system/debug/animation":
+                return new Page()
+                {
+                    Id = -6,
+                    Content = "This is a test animation page.",
+                    Flags = new HashSet<PageFlag>()
+                    {
+                        new PageFlag()
+                        {
+                            Id = -3,
+                            Type = PageFlagType.EnterAnimation,
+                            Value = "MatrixAnimation"
+                        }
+                    },
+                    Title = "Animation test",
+                    Version = 0,
+                    CreatedAt = DateTime.MinValue,
+                    UpdatedAt = DateTime.MinValue,
+                    VirtualPath = "/system/debug/animation",
+                    CreatedBy = Guid.Empty,
+                    UpdatedBy = Guid.Empty,
+                    PageGuid = Guid.Empty
+                };
             case "/system/overview":
                 return new Page()
                 {
@@ -225,7 +311,7 @@ public class PageReader
                 return new Page()
                 {
                     Id = -4,
-                    Content = GenerateFileListing().Result,
+                    Content = GenerateFileListing(false).Result,
                     Flags = new HashSet<PageFlag>()
                     {
                         new PageFlag()
@@ -333,7 +419,7 @@ public class PageReader
     private string GenerateCrewOverview()
     {
         var sb = new StringBuilder();
-        
+
         sb.AppendLine("[color=warning][block=warning]Warning");
         sb.AppendLine("You only have access to a limited overview of the crew. Some information may be hidden or inaccessible.");
         sb.AppendLine("[/block][/color]");
@@ -351,25 +437,31 @@ public class PageReader
             // roles are also sorted by enum value
             var sortedRoles = account.Roles.OrderBy(r => r).ToList();
             var roles = string.Join(", ", sortedRoles.Select(r => r.ToString()));
-            
+
             sb.AppendLine($"[color=white]{account.Username}[/color]");
             sb.AppendLine($"[color=info]Roles: {roles}[/color]");
             sb.AppendLine();
         }
-        
+
         sb.AppendLine("[speed=0]--- END ---[speed=default]");
         sb.AppendLine("[/color][color=warn][block=warning]Warning:");
         sb.AppendLine("This overview is classified. Misuse is punishable by law and may be prosecuted as treason.");
         sb.AppendLine("Do not attempt to access information you are not authorized to view.");
         sb.AppendLine("[/block][/color][/color]");
-        
+
         return sb.ToString();
     }
-    
-    private async Task<string> GenerateFileListing()
+
+    private async Task<string> GenerateFileListing(bool syndicate)
     {
         var sb = new StringBuilder();
-        
+
+        if (syndicate)
+        {
+            sb.AppendLine("[color=info][block=info]Syndicate access granted. Welcome, agent.[/block][/color]");
+            sb.AppendLine("[button=/system/listing;RETURN TO NORMAL NET]");
+        }
+
         var account = await _authHelper.FetchAccount();
         if (account == null)
         {
@@ -395,27 +487,23 @@ public class PageReader
 
             sb.AppendLine();
         }
-        
+
         sb.AppendLine("[color=white]Available files:[color=sys][speed=0]");
         sb.AppendLine("--- BEGIN ---[speed=default]");
         sb.AppendLine();
-        
+
         var pages = _context.Pages
             .Select(p => p.PageGuid)
             .Distinct()
             .ToList();
-        
-        if (pages.Count == 0)
-        {
-            sb.AppendLine("[color=red]No files found.[/color]");
-        }
-        else
+
+        if (pages.Count > 0 && !syndicate)
         {
             // Get the 3 most recent changes
             var recentChanges = _context.Database.SqlQueryRaw<Guid>(
-                "SELECT \"PageGuid\" FROM( SELECT *, ROW_NUMBER() OVER (PARTITION BY \"PageGuid\" ORDER BY \"Id\" DESC) AS rn FROM \"Pages\") AS sub WHERE rn = 1 ORDER BY \"Id\" DESC LIMIT 3; ")
+                    "SELECT \"PageGuid\" FROM( SELECT *, ROW_NUMBER() OVER (PARTITION BY \"PageGuid\" ORDER BY \"Id\" DESC) AS rn FROM \"Pages\") AS sub WHERE rn = 1 ORDER BY \"Id\" DESC LIMIT 3; ")
                 .ToList();
-            
+
             var recentChangesPages = new List<Page>();
             foreach (var recentChange in recentChanges)
             {
@@ -424,9 +512,9 @@ public class PageReader
                     recentChangesPages.Add(page.First());
                 }
             }
-            
+
             recentChangesPages = recentChangesPages.OrderByDescending(p => p.UpdatedAt).ToList();
-            
+
             sb.AppendLine("[color=info]Recent changes:[/color]");
             foreach (var page in recentChangesPages)
             {
@@ -436,49 +524,57 @@ public class PageReader
                     {
                         continue;
                     }
-                    
+
                     if (page.CreatedBy != account.Id && !account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
                     {
                         // not the creator
                         continue;
                     }
                 }
-                
+
                 sb.AppendLine($"[color=info]{page.Title}[/color] - {page.UpdatedAt:yyyy-MM-dd HH:mm:ss}");
                 sb.AppendLine($"[button={page.VirtualPath};VIEW]");
             }
-            
-            sb.AppendLine();
-            sb.AppendLine("[color=info]All files:[/color]");
-            
-            // Get the latest version of each page
-            var files = new List<Page>();
-            foreach (var guid in pages)
-            {
-                if (TryGetPagesFromGuid(guid, out var page, false))
-                {
-                    var item = page.First();
-                    if (item.Flags.HasFlag(PageFlagType.Unlisted))
-                    {
-                        if (account == null)
-                        {
-                            continue;
-                        }
-                        
-                        if (item.CreatedBy != account.Id && !account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
-                        {
-                            // not the creator
-                            continue;
-                        }
-                    }
-                    
-                    files.Add(item);
-                }
-            }
-
-            var tree = TreeNode.BuildTree(files);
-            TreeNode.GetTree(tree, ref sb);
         }
+
+        sb.AppendLine();
+        sb.AppendLine("[color=info]All files:[/color]");
+
+        // Get the latest version of each page
+        var files = new List<Page>();
+        foreach (var guid in pages)
+        {
+            if (TryGetPagesFromGuid(guid, out var page, false))
+            {
+                var item = page.First();
+                if (item.Flags.HasFlag(PageFlagType.Unlisted))
+                {
+                    if (account == null)
+                    {
+                        continue;
+                    }
+
+                    if (item.CreatedBy != account.Id && !account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
+                    {
+                        // not the creator
+                        continue;
+                    }
+                }
+
+                if (item.Flags.HasFlag(PageFlagType.Syndicate) && !syndicate)
+                {
+                    continue; // skip syndicate files
+                } else if (!item.Flags.HasFlag(PageFlagType.Syndicate) && syndicate)
+                {
+                    continue; // skip non-syndicate files
+                }
+
+                files.Add(item);
+            }
+        }
+
+        var tree = TreeNode.BuildTree(files);
+        TreeNode.GetTree(tree, ref sb);
 
         sb.AppendLine();
         sb.AppendLine("[speed=0]--- END ---[speed=default]");
@@ -486,19 +582,30 @@ public class PageReader
         sb.AppendLine("These files are classified. Misuse is punishable by law and may be prosecuted as treason.");
         sb.AppendLine("Do not attempt to access files you are not authorized to view.");
         sb.AppendLine("[/block][/color][/color]");
-        
+
         // Button controls
         sb.AppendLine("[button=/system/link/editor;NEW ENTRY]");
         sb.AppendLine("[button=/system/overview;CREW OVERVIEW]");
         sb.AppendLine("[button=/system/link/files;FILE SYSTEM]");
         sb.AppendLine("[button=/system/link/colors;COLOR PALETTES]");
-        
+        if (!syndicate)
+        {
+            sb.AppendLine("[button=/system/emag;INSERT EMAG]");
+        }
+
+        // Random quote
+        sb.AppendLine();
+        sb.AppendLine("[color=info]Space news feed:[/color]");
+        sb.AppendLine(await _quoteHelper.GetRandomQuote());
+        sb.AppendLine(
+            "[color=info]NOTE: This is random data from local background communications. It may not be accurate, relevant or up to date.[/color]");
+
         return sb.ToString();
     }
 
-    // Yes, I know this is a mess. I'm sorry. Actually, I'm not. 
-    
-    private const string NotFound = 
+    // Yes, I know this is a mess. I'm sorry. Actually, I'm not.
+
+    private const string NotFound =
 """
 [color=red]ERROR - UNABLE TO FIND REQUESTED DOCUMENT, IF YOU BELIEVE THIS IS AN ERROR, PLEASE CONTACT ENGINEERING FOR ASSISTANCE.[/color]
 """;
@@ -508,8 +615,19 @@ public class PageReader
 [button=/system/startup;Start boot]
 [button=/system/listing;Go to listing]
 """;
-    
-    private const string Startup = 
+
+    private const string Emag =
+"""
+#############################################
+#                                           #
+#            NET   SWITCHED                 #
+#            ACCESS GRANTED                 #
+#            WELCOME  AGENT                 #
+#                                           #
+#############################################
+""";
+
+    private const string Startup =
 """
 Please wait...
 [color=sys][speed=0]-----------------------------------------------------

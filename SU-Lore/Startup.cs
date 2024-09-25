@@ -20,18 +20,18 @@ public class Startup
     {
         Configuration = configuration;
     }
-    
+
     public IConfiguration Configuration { get; }
 
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddMemoryCache();
-        
+
         services.AddControllersWithViews().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         });
-        
+
         services.AddDbContext<ApplicationDbContext>(options =>
         {
             if (Configuration.GetConnectionString("DefaultConnection") == null)
@@ -42,7 +42,7 @@ public class Startup
 
             options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"));
         });
-        
+
         services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -52,24 +52,28 @@ public class Startup
                 Log.Fatal("No proxy IP found in appsettings.json. Exiting.");
                 Environment.Exit(1);
             }
-            
+
             Log.Information("Proxy IP: {ProxyIP}", proxyIP);
             options.KnownProxies.Add(IPAddress.Parse(proxyIP));
         });
-        
+
         services.Configure<KestrelServerOptions>(options =>
         {
             options.Limits.MaxRequestBodySize = int.MaxValue;
         });
-        
+
         services.Configure<FormOptions>(options =>
         {
             options.MultipartBodyLengthLimit = int.MaxValue;
         });
-        
+
         services.AddRazorComponents()
-            .AddInteractiveServerComponents();
-        
+            .AddInteractiveServerComponents()
+            .AddHubOptions(options =>
+            {
+                options.MaximumReceiveMessageSize = int.MaxValue;
+            });
+
         services.AddHttpContextAccessor();
 
         services.AddAuthentication(options =>
@@ -82,27 +86,30 @@ public class Startup
         }).AddOpenIdConnect("oidc", options =>
         {
             options.SignInScheme = "Cookies";
-    
+
             options.Authority = "https://central.spacestation14.io/web/";
             options.ClientId = Configuration["ClientId"];
             options.ClientSecret = Configuration["ClientSecret"];
-    
+
             options.ResponseType = OpenIdConnectResponseType.Code;
             options.RequireHttpsMetadata = false;
-    
+
             options.Scope.Add("openid");
             options.Scope.Add("profile");
-    
+
             options.GetClaimsFromUserInfoEndpoint = true;
         });
-        
+
         services.AddSwaggerGen();
         services.AddHttpLogging(o => { });
-        
+
         services.AddScoped<AuthenticationHelper>();
         services.AddScoped<PageReader>();
         services.AddScoped<RichTextParser>();
-        
+        services.AddScoped<RandomQuoteHelper>();
+
+        services.AddSingleton<AnimationHelper>();
+
         // Run migrations on startup.
         var sw = Stopwatch.StartNew();
         Log.Information("Applying migrations...");
@@ -121,7 +128,7 @@ public class Startup
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
         app.UseHttpLogging();
-        
+
         app.Use((context, next) =>
         {
             // Log the request.
@@ -129,20 +136,20 @@ public class Startup
             context.Request.Scheme = "https";
             return next();
         });
-        
+
         app.UseHttpsRedirection();
-        
+
         app.UseStaticFiles();
 
         app.UseRouting();
-        
+
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAntiforgery();
-        
+
         app.UseSwagger();
         app.UseSwaggerUI();
-        
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapSwagger();
@@ -153,12 +160,12 @@ public class Startup
                 name: "default",
                 pattern: "api/{controller=Home}/{action=Index}/{id?}");
         });
-        
+
         app.UseHttpsRedirection();
         app.UseForwardedHeaders();
         app.UseRouting();
         app.UseCors();
-        
+
         if (!env.IsDevelopment())
         {
             app.UseExceptionHandler("/Error", createScopeForErrors: true);

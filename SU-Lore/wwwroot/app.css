@@ -561,3 +561,9 @@ video {
     color: var(--fg-error);
     text-shadow: var(--glow-error);
 }
+
+
+#components-reconnect-modal h5, #components-reconnect-modal a {
+    color: black;
+    text-shadow: none;
+}

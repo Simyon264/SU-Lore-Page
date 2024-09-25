@@ -7,6 +7,7 @@ namespace SU_Lore.Controllers;
 /// Returns the raw content of a page without any formatting.
 /// </summary>
 [Route("raw")]
+[Route("rawr")]
 public class RawController : Controller
 {
     private readonly PageReader _pageService;

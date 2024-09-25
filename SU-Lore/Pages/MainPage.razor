@@ -17,6 +17,7 @@
 @inject IJSRuntime JsRuntime
 @inject IHttpContextAccessor HttpContextAccessor
 @inject AuthenticationHelper AuthHelper
+@inject AnimationHelper AnimationHelper
 
 @if(_page != null && _page.Flags.HasFlag(PageFlagType.CustomCss))
 {
@@ -50,7 +51,7 @@
                 <a class="button" href="#/system/link/editor?mode=edit&id=@_page.PageGuid">Edit</a>
                 <a class="button" href="#/system/link/history?page=@_page.PageGuid">File history</a>
                 <a class="button" asp-method="CopyLink">Get share link</a>
-                <a class="button" href="#/system/link/raw?page=@_page.Id">View raw</a>
+                <a class="button" href="#/system/link/rawr?page=@_page.Id">View raw</a>
                 <a class="button" href="#/system/link/analyze?page=@_page.PageGuid">Stats</a>
             }
         </div>
@@ -213,7 +214,7 @@
         // This is where we will load the page content.
         var uri = new Uri(NavigationManager.Uri);
         var query = uri.Query;
-        var pageToLoad = "/system/boot"; // We default to the root page (startup screen).
+        var pageToLoad = "/system/listing";
         if (!string.IsNullOrEmpty(query))
         {
             var queryDict = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query);
@@ -290,6 +291,46 @@
 
         try
         {
+            if (page.Flags.HasFlag(PageFlagType.EnterAnimation))
+            {
+                var animation = page.Flags.First(f => f.Type == PageFlagType.EnterAnimation).Value;
+                var animationInstance = AnimationHelper.GetAnimationFromName(animation);
+                var animationTcs = new TaskCompletionSource<bool>();
+                animationInstance.Start(page, s =>
+                {
+                    InvokeAsync(() =>
+                    {
+                        _status.Content = new MarkupString(s);
+                        StateHasChanged();
+                    });
+                }, animationTcs);
+
+                await animationTcs.Task;
+                if (animationTcs.Task.Result == false)
+                {
+                    Log.Error("Animation failed to complete.");
+                }
+
+                if (page.Flags.HasFlag(PageFlagType.Redirect))
+                {
+                    var redirect = page.Flags.First(f => f.Type == PageFlagType.Redirect).Value;
+                    if (PageReader.TryGetPageFromPath(redirect, out var redirectPage))
+                    {
+                        LoadContent(redirectPage);
+                    }
+                }
+                return;
+            }
+
+            if (page.Flags.HasFlag(PageFlagType.Redirect))
+            {
+                var redirect = page.Flags.First(f => f.Type == PageFlagType.Redirect).Value;
+                if (PageReader.TryGetPageFromPath(redirect, out var redirectPage))
+                {
+                    loadAfterFinish = redirect;
+                }
+            }
+
             for (var i = 0; i < content.Length; i++)
             {
                 var exit = false;
@@ -302,17 +343,7 @@
                 if (_status.IsInstantText)
                 {
                     // straight up just render the whole thing.
-
-                    // first, remove any tags.
-                    content = content.Replace("[speed=default]", "");
-                    // regex remove [speed=number]
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"\[speed=\d+\]", "");
-                    // regex remove [delay=number]
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"\[delay=\d+\]", "");
-                    // regex remove [play=audio]
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"\[play=[a-zA-Z0-9.]+\]", "");
-                    // regex remove [load=page]
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"\[load=[a-zA-Z0-9]+\]", "");
+                    content = ReplaceForInstantRendering(content);
 
                     _status.Content = new MarkupString(content);
                     StateHasChanged();
@@ -502,5 +533,20 @@
         }
 
         LoadContent(page, saveToStack);
+    }
+
+    public static string ReplaceForInstantRendering(string content)
+    {
+        content = content.Replace("[speed=default]", "");
+        // regex remove [speed=number]
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[speed=\d+\]", "");
+        // regex remove [delay=number]
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[delay=\d+\]", "");
+        // regex remove [play=audio]
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[play=[a-zA-Z0-9.]+\]", "");
+        // regex remove [load=page]
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[load=[a-zA-Z0-9]+\]", "");
+
+        return content;
     }
 }

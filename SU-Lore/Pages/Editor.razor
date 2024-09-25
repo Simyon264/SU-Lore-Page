@@ -305,6 +305,7 @@
         var account = await AuthHelper.FetchAccount(true);
         if (account == null)
         {
+            NavigationManager.NavigateTo("/account/login", true);
             Unauthorized = true;
             Message = "Account not found in database.";
             return;

@@ -37,4 +37,22 @@ public enum PageFlagType
     /// </summary>
     [PageFlag("If set, the page will use custom CSS. The value should be the CSS to use.", hasValue: true)]
     CustomCss = 5,
+
+    /// <summary>
+    /// Once the page is rendered fully, it will redirect to the value. If instant is set, it will redirect instantly.
+    /// </summary>
+    [PageFlag("On end of rendering, the page will redirect to the value. If instant is set, it will redirect instantly.", hasValue: true)]
+    Redirect = 6,
+
+    /// <summary>
+    /// What animation should be used when the page is entered. If set, the page text will always be hidden until the animation is done.
+    /// </summary>
+    [PageFlag("What animation should be used when the page is entered. If set, the page text will always be hidden until the animation is done.", hasValue: true)]
+    EnterAnimation = 7,
+
+    /// <summary>
+    /// Should this page show up in the syndicate listing?
+    /// </summary>
+    [PageFlag("Should this page show up in the syndicate listing?", hasValue: false)]
+    Syndicate = 8,
 }

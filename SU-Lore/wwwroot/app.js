@@ -50,7 +50,7 @@ window.start = (dotNetHelper) => {
     const instantOption = document.getElementById("instant-option");
     if (instantOption) {
         instantOption.addEventListener("change", function() {
-            document.cookie = `instant=${instantOption.checked}; path=/`;
+            document.cookie = `instant=${instantOption.checked}; path=/;expires=Fri, 31 Dec 9999 23:59:59 GMT`;
             try {
                 dotNetHelper.invokeMethodAsync("SetInstant", instantOption.checked);
             } catch (e) {
@@ -98,6 +98,12 @@ window.start = (dotNetHelper) => {
             const deleteAtt = e.target.getAttribute("file-manager-delete")
             if (deleteAtt) {
                 e.preventDefault()
+                // ask for confirmation
+                const result = confirm("Are you sure you want to delete this file?");
+                if (!result) {
+                    return;
+                }
+
                 dotNetHelper.invokeMethodAsync("DeleteFile", deleteAtt);
                 return;
             }
