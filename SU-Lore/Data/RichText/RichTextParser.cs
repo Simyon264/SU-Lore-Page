@@ -15,22 +15,29 @@ public class RichTextParser
 {
     private readonly AuthenticationHelper _authenticationHelper;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
-    
+
     public RichTextParser(AuthenticationHelper authenticationHelper, AuthenticationStateProvider authenticationStateProvider)
     {
         _authenticationHelper = authenticationHelper;
         _authenticationStateProvider = authenticationStateProvider;
     }
-    
+
     public static string GetCurrentDate()
     {
         return DateTime.Now.AddYears(200).ToString("yyyy-MM-dd");
     }
-    
-    public async Task<MarkupString> Parse(string input)
+
+    public async Task<MarkupString> Parse(string input, Account? user = null)
     {
-        var user = await _authenticationHelper.FetchAccount();
-        
+        try
+        {
+            user ??= await _authenticationHelper.FetchAccount();
+        }
+        catch (Exception e)
+        {
+            // ignore
+        }
+
         ReplaceStatics(ref input, user);
         ReplaceAlligmentTags(ref input);
         ReplaceHeaders(ref input);
@@ -39,15 +46,15 @@ public class RichTextParser
         ReplaceUnderline(ref input);
         ReplaceStrikethrough(ref input);
         ReplaceCollapse(ref input);
-        
+
         ParseButtonTags(ref input);
         ParseColorTags(ref input);
         ParseBlockTags(ref input);
         ParseMediaTags(ref input);
-        
+
         return new MarkupString(input);
     }
-    
+
     /// <summary>
     /// Replaces the collapse tags, so [collapse=header]content[/collapse] becomes a collapsible element.
     /// </summary>
@@ -69,7 +76,7 @@ public class RichTextParser
             input = input.Remove(startIndex, closingTagIndex - startIndex + 11).Insert(startIndex, replacement);
         }
     }
-    
+
     private void ReplaceStrikethrough(ref string input)
     {
         int startIndex;
@@ -83,7 +90,7 @@ public class RichTextParser
             input = input.Remove(startIndex, closingTagIndex - startIndex + 9).Insert(startIndex, replacement);
         }
     }
-    
+
     private void ReplaceUnderline(ref string input)
     {
         int startIndex;
@@ -97,7 +104,7 @@ public class RichTextParser
             input = input.Remove(startIndex, closingTagIndex - startIndex + 12).Insert(startIndex, replacement);
         }
     }
-    
+
     private void ReplaceBold(ref string input)
     {
         int startIndex;
@@ -111,19 +118,19 @@ public class RichTextParser
             input = input.Remove(startIndex, closingTagIndex - startIndex + 7).Insert(startIndex, replacement);
         }
     }
-    
+
     private void ReplaceAlligmentTags(ref string input)
     {
         input = input.Replace("[center]", "<div style=\"text-align: center;\">");
         input = input.Replace("[/center]", "</div>");
-        
+
         input = input.Replace("[left]", "<div style=\"text-align: left;\">");
         input = input.Replace("[/left]", "</div>");
-        
+
         input = input.Replace("[right]", "<div style=\"text-align: right;\">");
         input = input.Replace("[/right]", "</div>");
     }
-    
+
     private void ReplaceItalic(ref string input)
     {
         int startIndex;
@@ -154,7 +161,7 @@ public class RichTextParser
             var closingTagIndex = input.IndexOf("[/head]", endIndex, StringComparison.Ordinal);
             if (closingTagIndex == -1)
                 break;
-            
+
             if (!int.TryParse(level.ToString(), out var num))
             {
                 throw new Exception("Header level is invalid. It should be between 1 and 6. But it was: " + level);
@@ -163,7 +170,7 @@ public class RichTextParser
             // max level is 6
             if (num > 6)
                 throw new Exception("Header level is invalid. It should be between 1 and 6. But it was: " + level);
-            
+
             if (num < 1)
                 throw new Exception("Header level is invalid. It should be between 1 and 6. But it was: " + level);
 
@@ -202,7 +209,7 @@ public class RichTextParser
     private void ParseMediaTags(ref string input)
     {
         int startIndex;
-        
+
         // First the image tag, image tag works like this: [image=filename;alt text;width;height]
         while ((startIndex = input.IndexOf("[image=", StringComparison.Ordinal)) != -1)
         {
@@ -220,7 +227,7 @@ public class RichTextParser
             var replacement = $"<img src=\"/resources/{split[0]}\" alt=\"{split[1]}\" width=\"{split[2]}\" height=\"{split[3]}\" onError=\"console.error('Image failed to load: {split[0]}');this.onerror=null;this.src='/resources/missing.png';this.height=270;this.width=480;\">";
             input = input.Remove(startIndex, endIndex - startIndex + 1).Insert(startIndex, replacement);
         }
-        
+
         // Then the audio tag, audio does not have a closing tag
         while ((startIndex = input.IndexOf("[audio=", StringComparison.Ordinal)) != -1)
         {
@@ -232,7 +239,7 @@ public class RichTextParser
             var replacement = $"<audio controls><source src=\"/resources/{path}\" type=\"audio/mpeg\"></audio>";
             input = input.Remove(startIndex, endIndex - startIndex + 1).Insert(startIndex, replacement);
         }
-        
+
         // Then the video tag, video does not have a closing tag
         while ((startIndex = input.IndexOf("[video=", StringComparison.Ordinal)) != -1)
         {
@@ -251,12 +258,12 @@ public class RichTextParser
     {
         input = input.Replace("[date]", GetCurrentDate());
         input = input.Replace("[username]", account?.Username ?? "Anonymous");
-        
+
         // Prevent XSS
         input = input.Replace("<", "&lt;");
         input = input.Replace(">", "&gt;");
     }
-    
+
     private void ParseColorTags(ref string input)
     {
         int startIndex;
@@ -272,7 +279,7 @@ public class RichTextParser
             {
                 throw new Exception("Color name contains invalid characters. Only ascii letters are allowed. Name was: " + colorName);
             }
-            
+
             var closingTagIndex = input.IndexOf("[/color]", endIndex, StringComparison.Ordinal);
             if (closingTagIndex == -1)
                 break;
@@ -281,7 +288,7 @@ public class RichTextParser
             input = input.Remove(startIndex, closingTagIndex - startIndex + 8).Insert(startIndex, replacement);
         }
     }
-    
+
     private void ParseBlockTags(ref string input)
     {
         int startIndex;
@@ -300,7 +307,7 @@ public class RichTextParser
             input = input.Remove(startIndex, closingTagIndex - startIndex + 8).Insert(startIndex, replacement);
         }
     }
-    
+
     private string GetRandomId()
     {
         return Guid.NewGuid().ToString().Substring(0, 8);

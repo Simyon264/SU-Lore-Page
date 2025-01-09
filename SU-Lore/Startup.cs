@@ -30,6 +30,7 @@ public class Startup
         services.AddControllersWithViews().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         });
 
         services.AddDbContext<ApplicationDbContext>(options =>

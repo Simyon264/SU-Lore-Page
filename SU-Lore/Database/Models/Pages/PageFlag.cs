@@ -1,17 +1,20 @@
-﻿namespace SU_Lore.Database.Models.Pages;
+﻿using System.Text.Json.Serialization;
+
+namespace SU_Lore.Database.Models.Pages;
 
 /// <summary>
 /// A flag that can be set on a page to change its behavior. Be it displaying the title or well, not.
 /// </summary>
 public class PageFlag
 {
+    [JsonIgnore]
     public int Id { get; set; }
-    
+
     /// <summary>
     /// The type of flag.
     /// </summary>
     public required PageFlagType Type { get; set; }
-    
+
     /// <summary>
     /// It's assigned value. Can be anything, really. It's up to the flag type to decide what to do with it.
     /// </summary>
@@ -35,9 +38,11 @@ public class PageFlag
     {
         return Type.GetHashCode();
     }
-    
+
+    [JsonIgnore]
     public int PageId { get; set; }
-    
+
+    [JsonIgnore]
     public Page Page { get; set; }
 }
 

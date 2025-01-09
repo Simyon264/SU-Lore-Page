@@ -129,17 +129,9 @@ public class CustomCss : Controller
         {
             var url = match.Groups[2].Value;
 
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            if (url.StartsWith("/") || url.StartsWith("./") || url.StartsWith("../"))
             {
-                if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-                {
-                    Log.Warning("Removed disallowed URL: {Url}", url);
-                    return "url('')";
-                }
-            }
-            else if (url.StartsWith("/") || url.StartsWith("./") || url.StartsWith("../"))
-            {
-                return match.Value;
+                return match.Value; // Allow local URLs
             }
 
             Log.Warning("Removed disallowed URL: {Url}", url);

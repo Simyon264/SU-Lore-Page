@@ -39,10 +39,24 @@ public class PageReader
     /// <summary>
     /// Returns a list of pages based on their GUID. They are sorted by version number.
     /// </summary>
-    public bool TryGetPagesFromGuid(Guid guid, [NotNullWhen(true)] out List<Page>? page, bool collectStats = true)
+    public bool TryGetPagesFromGuid(Guid guid, [NotNullWhen(true)] out List<Page>? page, bool collectStats = true, bool includeContent = true)
     {
         var pages = _context.Pages
             .Include(p => p.Flags)
+            .Select(p => new Page()
+            {
+                Content = includeContent ? p.Content : "",
+                CreatedAt = p.CreatedAt,
+                CreatedBy = p.CreatedBy,
+                Flags = p.Flags,
+                Id = p.Id,
+                Title = p.Title,
+                UpdatedAt = p.UpdatedAt,
+                UpdatedBy = p.UpdatedBy,
+                Version = p.Version,
+                VirtualPath = p.VirtualPath,
+                PageGuid = p.PageGuid
+            })
             .Where(p => p.PageGuid == guid)
             .OrderByDescending(p => p.Version)
             .ToList();
@@ -50,7 +64,16 @@ public class PageReader
         page = pages;
 
         // Page stats
-        var account = _authHelper.FetchAccount().Result;
+        Account? account = null;
+        try
+        {
+            account = _authHelper.FetchAccount().Result;
+        }
+        catch
+        {
+            // ignored
+        }
+
         if (page.Count > 0 && collectStats)
         {
             var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == pages![0].PageGuid);
@@ -89,7 +112,7 @@ public class PageReader
     /// <param name="path">The virtual path of the page.</param>
     /// <param name="page">The page if found, null otherwise.</param>
     /// <returns>True if the page was found, false otherwise.</returns>
-    public bool TryGetPageFromPath(string path, [NotNullWhen(true)] out Page? page, bool collectStats = true)
+    public bool TryGetPageFromPath(string path, [NotNullWhen(true)] out Page? page, bool collectStats = true, Account? account = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -107,25 +130,32 @@ public class PageReader
         }
         if (path.StartsWith("/system/"))
         {
-            page = GetSystemPage(path);
+            page = GetSystemPage(path, account);
             return true;
         }
 
-        page = GetPageFromPath(path, collectStats);
+        page = GetPageFromPath(path, collectStats, account);
         return page != null;
     }
 
-    private Page? GetPageFromPath(string path, bool collectStats = true)
+    private Page? GetPageFromPath(string path, bool collectStats = true, Account? account = null)
     {
         var page = _context.Pages
             .Include(p => p.Flags)
             .OrderByDescending(p => p.Version)
             .FirstOrDefault(p => p.VirtualPath == path);
 
-        var account = _authHelper.FetchAccount().Result;
-
         if (page != null && collectStats)
         {
+            try
+            {
+                account ??= _authHelper.FetchAccount().Result;
+            }
+            catch (Exception e)
+            {
+                // ignored
+            }
+
             var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == page!.PageGuid);
             var uniqueAccountPageKey = account?.Id.ToString() + page.PageGuid.ToString();
             if (pageStats != null)
@@ -157,7 +187,7 @@ public class PageReader
         return page;
     }
 
-    public bool TryGetPageFromId(int pageId, [NotNullWhen(true)] out Page? o, bool collectStats = true)
+    public bool TryGetPageFromId(int pageId, [NotNullWhen(true)] out Page? o, bool collectStats = true, Account? account = null)
     {
         var page = _context.Pages
             .Include(p => p.Flags)
@@ -171,9 +201,9 @@ public class PageReader
         }
 
         // Page stats
-        var account = _authHelper.FetchAccount().Result;
         if (o != null && collectStats)
         {
+            account ??= _authHelper.FetchAccount().Result;
             var pageStats = _context.PageStats.FirstOrDefault(p => p.PageId == page!.PageGuid);
             var uniqueAccountPageKey = account?.Id.ToString() + o.PageGuid.ToString();
             if (pageStats != null)
@@ -204,10 +234,40 @@ public class PageReader
         return o != null;
     }
 
-    private Page GetSystemPage(string path)
+    private Page GetSystemPage(string path, Account? account)
     {
         switch (path)
         {
+            case "/system/deleted":
+                return new Page()
+                {
+                    Id = -10,
+                    Content = "Your account has been deleted. Wawa.",
+                    Flags = new HashSet<PageFlag>(),
+                    Title = "Deleted",
+                    Version = 0,
+                    CreatedAt = DateTime.MinValue,
+                    UpdatedAt = DateTime.MinValue,
+                    VirtualPath = "/system/deleted",
+                    CreatedBy = Guid.Empty,
+                    UpdatedBy = Guid.Empty,
+                    PageGuid = Guid.Empty
+                };
+            case "/system/privacy":
+                return new Page()
+                {
+                    Id = -9,
+                    Content = PrivacyPolicyAndToS,
+                    Flags = new HashSet<PageFlag>(),
+                    Title = "Privacy Policy",
+                    Version = 0,
+                    CreatedAt = DateTime.MinValue,
+                    UpdatedAt = DateTime.MinValue,
+                    VirtualPath = "/system/privacy",
+                    CreatedBy = Guid.Empty,
+                    UpdatedBy = Guid.Empty,
+                    PageGuid = Guid.Empty
+                };
             case "/system/link/account/login":
                 _navigationManager.NavigateTo("/account/login");
                 return null;
@@ -215,7 +275,7 @@ public class PageReader
                 return new Page()
                 {
                     Id = -8,
-                    Content = GenerateFileListing(true).Result,
+                    Content = GenerateFileListing(true, account).Result,
                     Flags = new HashSet<PageFlag>()
                     {
                         new PageFlag()
@@ -297,7 +357,15 @@ public class PageReader
                 {
                     Id = -5,
                     Content = GenerateCrewOverview(),
-                    Flags = new HashSet<PageFlag>(),
+                    Flags = new HashSet<PageFlag>()
+                    {
+                        new PageFlag()
+                        {
+                            Id = -2,
+                            Type = PageFlagType.AddAccountDeleteButton,
+                            Value = ""
+                        },
+                    },
                     Title = "Crew overview",
                     Version = 0,
                     CreatedAt = DateTime.MinValue,
@@ -311,7 +379,7 @@ public class PageReader
                 return new Page()
                 {
                     Id = -4,
-                    Content = GenerateFileListing(false).Result,
+                    Content = GenerateFileListing(false, account).Result,
                     Flags = new HashSet<PageFlag>()
                     {
                         new PageFlag()
@@ -452,7 +520,7 @@ public class PageReader
         return sb.ToString();
     }
 
-    private async Task<string> GenerateFileListing(bool syndicate)
+    private async Task<string> GenerateFileListing(bool syndicate, Account? account)
     {
         var sb = new StringBuilder();
 
@@ -462,7 +530,13 @@ public class PageReader
             sb.AppendLine("[button=/system/listing;RETURN TO NORMAL NET]");
         }
 
-        var account = await _authHelper.FetchAccount();
+        try
+        {
+            account ??= await _authHelper.FetchAccount();
+        }
+        catch (InvalidOperationException e)
+        {
+        }
         if (account == null)
         {
             // We append an error block
@@ -482,6 +556,7 @@ public class PageReader
             } else {
                 sb.AppendLine("[color=info][block=info]ID card recognized. Welcome [username].");
                 sb.AppendLine("[color=red]You are not authorized to create or edit content, please contact Simyon for access.[/color]");
+                sb.AppendLine("[button=/system/link/account/logout;EJECT ID]");
                 sb.AppendLine("[/block][/color]");
             }
 
@@ -507,9 +582,9 @@ public class PageReader
             var recentChangesPages = new List<Page>();
             foreach (var recentChange in recentChanges)
             {
-                if (TryGetPagesFromGuid(recentChange, out var page, false))
+                if (TryGetPageFromGuid(recentChange, out var page))
                 {
-                    recentChangesPages.Add(page.First());
+                    recentChangesPages.Add(page);
                 }
             }
 
@@ -544,7 +619,7 @@ public class PageReader
         var files = new List<Page>();
         foreach (var guid in pages)
         {
-            if (TryGetPagesFromGuid(guid, out var page, false))
+            if (TryGetPagesFromGuid(guid, out var page, false, false))
             {
                 var item = page.First();
                 if (item.Flags.HasFlag(PageFlagType.Unlisted))
@@ -594,16 +669,76 @@ public class PageReader
         }
 
         // Random quote
-        sb.AppendLine();
-        sb.AppendLine("[color=info]Space news feed:[/color]");
-        sb.AppendLine(await _quoteHelper.GetRandomQuote());
-        sb.AppendLine(
-            "[color=info]NOTE: This is random data from local background communications. It may not be accurate, relevant or up to date.[/color]");
+        //sb.AppendLine();
+        //sb.AppendLine("[color=info]Space news feed:[/color]");
+        //sb.AppendLine(await _quoteHelper.GetRandomQuote());
+        //sb.AppendLine(
+        //    "[color=info]NOTE: This is random data from local background communications. It may not be accurate, relevant or up to date.[/color]");
+
+        sb.AppendLine("[button=/system/privacy;PRIVACY POLICY]");
 
         return sb.ToString();
     }
 
+    public bool TryGetPageFromGuid(Guid recentChange, [NotNullWhen(true)] out Page? o)
+    {
+        var page = _context.Pages
+            .Include(p => p.Flags)
+            .OrderByDescending(p => p.Version)
+            .FirstOrDefault(p => p.PageGuid == recentChange);
+
+        o = page;
+        return o != null;
+    }
+
     // Yes, I know this is a mess. I'm sorry. Actually, I'm not.
+
+private const string PrivacyPolicyAndToS =
+    // 5 things i need:
+    // list every purpose for which you collect data,
+    // which data you collect for those purposes
+    // who has access to this information and under which circumstances
+    // retention period
+    // contact section
+"""
+[head=1]Sector Umbra Lore Page Privacy Policy[/head]
+[bold]Created at:[/bold] 02.12.2024 (DD/MM/YYYY)
+[bold]Updated at:[/bold] 02.12.2024 (DD/MM/YYYY)
+
+[head=2]Contact Information[/head]
+Data controller: Simyon (Operator of this website)
+- Discord: Simyon
+- E-mail: service@unstablefoundation.de
+
+[head=2]For what purposes do we collect data?[/head]
+1. [bold]Account creation:[/bold] We collect your username and guid using the SS14 OAuth system. This is used to identify you and your created content.
+2. [bold]Content creation:[/bold] Any content you make on this website is stored in our database. This includes current and past pages.
+3. [bold]Logging:[/bold] Any visits to articles are logged in an anonymized counter. This is used to track the popularity of articles.
+4. [bold]Files:[/bold] We store files you upload to the website. This is used to display the files to other users. 
+
+[head=2]What data do we process for these purposes?[/head]
+1. [bold]Account creation:[/bold] Username, GUID, creation date and assigned roles. All of this data is publicly accessible.
+2. [bold]Content creation:[/bold] The content you create, including the title, body, flags and virtual path are stored in our database and are publicly accessible. You can choose to put your content behind a password. In this case, the password you choose is stored uneccrypted in our database.
+3. [bold]Logging:[/bold] Statistic counters do not store any identifiable information. IPv4 and IPv6 addresses are stored in provider logs and are used to serve your request.
+4. [bold]Files:[/bold] The files you upload are stored in our database and are publicly accessible.
+
+[head=2]Who has access to this information and under which circumstances?[/head]
+1. [bold]Account creation:[/bold] Your GUID, username and roles are publicly accessible.
+2. [bold]Content creation:[/bold] The content you create is publicly accessible. If you choose to put your content behind a password, only users with the password can access it.
+3. [bold]Logging:[/bold] Statistic counters are publicly accessible. Provider logs are only accessible to data controllers.
+4. [bold]Files:[/bold] The files you upload are publicly accessible.
+
+[head=2]Retention period[/head]
+The database does daily backups and retains them for 7 days. After this period, the backups are deleted.
+1. [bold]Account creation:[/bold] Your account data is stored indefinitely until you request its deletion.
+2. [bold]Content creation:[/bold] Your content is stored indefinitely until you request its deletion.
+3. [bold]Logging:[/bold] Logs are rotated daily and stored for 7 days.
+4. [bold]Files:[/bold] Files are stored indefinitely until you request their deletion.
+
+[head=2]Disclosure on third-party sharing of information[/head]
+The following third-parties have access to personal data under the following conditions:
+[bold]Hetzner Gmbh (DE):[/bold] Provider of the server infrastructure. They have access to all data stored on the server. A data processing agreement is in place. The document is available upon request.
+""";
 
     private const string NotFound =
 """

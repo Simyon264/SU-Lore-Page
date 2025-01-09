@@ -26,7 +26,6 @@ public class RandomQuoteHelper
     public RandomQuoteHelper(RichTextParser richTextParser)
     {
         _httpClient = new HttpClient();
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", "SU-Lore");
 
         _random = new Random();
         _parser = richTextParser;

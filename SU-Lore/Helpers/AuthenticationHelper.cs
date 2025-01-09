@@ -57,4 +57,14 @@ public class AuthenticationHelper
 
         return account;
     }
+
+    public async Task DeleteAccount(Account account)
+    {
+        _context.Accounts.Remove(account);
+        _context.Files.
+            RemoveRange(_context.Files.Where(f => f.UploadedBy == account));
+        _context.Pages.
+            RemoveRange(_context.Pages.Where(p => p.CreatedBy == account.Id));
+        await _context.SaveChangesAsync();
+    }
 }

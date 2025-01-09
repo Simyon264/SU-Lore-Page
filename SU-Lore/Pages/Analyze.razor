@@ -48,7 +48,7 @@
     private Page _latestPage;
     private string _pageId;
     private List<Page> _backlinks;
-    
+
     protected override Task OnInitializedAsync()
     {
         var uri = new Uri(NavigationManager.Uri);
@@ -61,7 +61,7 @@
             return Task.CompletedTask;
         }
         _pageId = pageId.ToString();
-        
+
         var parsed = Guid.TryParse(pageId, out var guid);
         if (!parsed)
         {
@@ -69,21 +69,21 @@
             NavigationManager.NavigateTo("/?page=/system/notfound", true);
             return Task.CompletedTask;
         }
-        
-        if (!PageReader.TryGetPagesFromGuid(guid, out var pages, false))
+
+        if (!PageReader.TryGetPagesFromGuid(guid, out var pages, false, true))
         {
             Log.Error("Failed to get pages from guid {PageId}", pageId);
             NavigationManager.NavigateTo("/?page=/system/notfound", true);
             return Task.CompletedTask;
         }
-        
+
         if (pages.Count == 0)
         {
             Log.Error("No pages found for guid {PageId}", pageId);
             NavigationManager.NavigateTo("/?page=/system/notfound", true);
             return Task.CompletedTask;
         }
-        
+
         _latestPage = pages[0];
 
         var stat = ApplicationDbContext.PageStats.FirstOrDefault(p => p.PageId == guid);
@@ -93,9 +93,9 @@
             NavigationManager.NavigateTo("/?page=/system/notfound", true);
             return Task.CompletedTask;
         }
-        
+
         _pageStat = stat;
-        
+
         // To calculate the backlinks (so what links to this page), we first need to get all page guid's
         var allPages = ApplicationDbContext.Pages.Select(p => p.PageGuid).Distinct().ToList();
         var latestVersions = new List<Page>();
@@ -106,7 +106,7 @@
                 latestVersions.Add(pages2[0]);
             }
         }
-        
+
         // Now we can calculate the backlinks, first we run the RichTextParser on all pages
         var backlinks = new List<Page>();
         foreach (var page in latestVersions)
@@ -137,9 +137,9 @@
                 Log.Error(e, "Failed to parse page {PageId}", page.PageGuid);
             }
         }
-        
+
         _backlinks = backlinks;
-        
+
         return Task.CompletedTask;
     }
 

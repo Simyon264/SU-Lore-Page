@@ -26,10 +26,10 @@ public enum PageFlagType
     /// <summary>
     /// The page should be password protected. The password being the value.
     /// </summary>
-    [PageFlag("If set, the page will be password protected. The password being the value.", hasValue:true)]
+    [PageFlag("If set, the page will be password protected. The password being the value.", hasValue:true, hideInApi:true)]
     PasswordProtected = 3,
 
-    [PageFlag("If set, the page will not be listed in the navigation.", hasValue: false)]
+    [PageFlag("If set, the page will not be listed in the navigation.", hasValue: false, hideInApi:true)]
     Unlisted = 4,
 
     /// <summary>
@@ -55,4 +55,10 @@ public enum PageFlagType
     /// </summary>
     [PageFlag("Should this page show up in the syndicate listing?", hasValue: false)]
     Syndicate = 8,
+
+    [PageFlag("List of keycard accesses a person must have to access this document ingame.", hasValue:true)]
+    KeycardPermissions = 9,
+
+    [PageFlag("If set, the account delete button will be displayed on the page.", hasValue: false, hideInApi:true, hidden:true)]
+    AddAccountDeleteButton = 10,
 }

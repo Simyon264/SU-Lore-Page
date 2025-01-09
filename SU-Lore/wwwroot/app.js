@@ -167,6 +167,12 @@ window.start = (dotNetHelper) => {
                         const idButInt = parseInt(id);
                         dotNetHelper.invokeMethodAsync("SaveExisting", idButInt, color, name);
                         break;
+                    case "DeleteAccount":
+                        const result = confirm("Are you sure you want to delete your account? This will delete all your pages and files. This action cannot be undone.");
+                        if (result) {
+                            dotNetHelper.invokeMethodAsync("CallAspMethod", method);
+                        }
+                        break;
                     default:
                         dotNetHelper.invokeMethodAsync("CallAspMethod", method);
                         break;
@@ -291,6 +297,13 @@ window.showPasswordPrompt = (pageGuid) => {
     passwordContent.classList.add("hidden");
     const guidContainer = document.getElementById("guid-container");
     guidContainer.innerHTML = pageGuid;
+}
+
+window.hidePasswordPrompt = () => {
+    const passwordPrompt = document.getElementById("password-field");
+    passwordPrompt.classList.add("hidden");
+    const passwordContent = document.getElementById("content-password")
+    passwordContent.classList.remove("hidden");
 }
 
 function videoError(id) {

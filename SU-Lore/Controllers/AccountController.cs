@@ -14,12 +14,12 @@ namespace SU_Lore.Controllers;
 public class AccountController : Controller
 {
     private readonly ApplicationDbContext _context;
-    
+
     public AccountController(ApplicationDbContext context)
     {
         _context = context;
     }
-    
+
     [Route("login")]
     [HttpGet]
     public IActionResult Login()
@@ -32,10 +32,12 @@ public class AccountController : Controller
 
     [Route("logout")]
     [HttpGet]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout(
+        [FromQuery] string redirect = "/system/listing"
+        )
     {
         await HttpContext.SignOutAsync("Cookies");
-        return Redirect("/?page=/system/listing");
+        return Redirect($"/?page={redirect}");
     }
 
     [Route("redirect")]
@@ -47,14 +49,14 @@ public class AccountController : Controller
             return Unauthorized();
         }
         var guid = Guid.Parse(User.Claims.First(c => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value);
-        
+
         var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == guid);
         var username = await Ss14ApiHelper.FetchAccountFromGuid(guid);
         if (username == null)
         {
             return StatusCode(500, "Failed to fetch account information from SS14 API.");
         }
-        
+
         if (account == null)
         {
             // New person, create an account for them.
@@ -64,11 +66,11 @@ public class AccountController : Controller
                 Username = username.userName,
                 Roles = new List<Role>() {Role.Employee}, // This is to prevent errors. stupiddd
             };
-            
+
             _context.Accounts.Add(account);
             await _context.SaveChangesAsync();
         }
-        
+
         // Is the username in the db and the api the same?
         if (account.Username != username.userName)
         {
