@@ -109,8 +109,6 @@ public class Startup
         services.AddScoped<RichTextParser>();
         services.AddScoped<RandomQuoteHelper>();
 
-        services.AddSingleton<AnimationHelper>();
-
         // Run migrations on startup.
         var sw = Stopwatch.StartNew();
         Log.Information("Applying migrations...");
