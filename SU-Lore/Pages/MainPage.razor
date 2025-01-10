@@ -62,7 +62,7 @@
         if (!firstRender)
             return;
         _module = await JS.InvokeAsync<IJSObjectReference>("import",
-            "./Pages/MainPageClient.razor.js");
+            "./Pages/MainPage.razor.js");
 
         _account = await AuthHelper.FetchAccount();
 
