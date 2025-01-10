@@ -13,7 +13,6 @@ public class UserCountHub : Hub
     {
         Log.Information("User connected: {ConnectionId}", Context.ConnectionId);
         var ipAddress = GetIpAddress()?.ToString();
-        Log.Information("User IP address: {IpAddress}", ipAddress);
 
         if (string.IsNullOrEmpty(ipAddress))
         {
@@ -42,7 +41,6 @@ public class UserCountHub : Hub
     {
         Log.Information("User disconnected: {ConnectionId}", Context.ConnectionId);
         var ipAddress = GetIpAddress()?.ToString();
-        Log.Information("User IP address: {IpAddress}", ipAddress);
 
         if (string.IsNullOrEmpty(ipAddress))
         {
