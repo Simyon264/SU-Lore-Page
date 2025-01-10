@@ -567,3 +567,24 @@ video {
     color: black;
     text-shadow: none;
 }
+
+.usercount-container {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 0.5rem;
+    color: var(--fg);
+}
+
+.usercount-container p {
+    margin: 0;
+}
+
+.usercount-container p::before {
+    content: "👥 ";
+}
+
+.usercount-container span {
+    color: var(--fg-bright);
+    text-shadow: var(--glow-bright);
+}

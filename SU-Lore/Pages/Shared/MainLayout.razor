@@ -14,15 +14,19 @@
     <label class="checkbox">
         @if (HttpContextAccessor.HttpContext != null && HttpContextAccessor.HttpContext.Request.Cookies.ContainsKey("instant") && HttpContextAccessor.HttpContext.Request.Cookies["instant"] == "true")
         {
-        <input id="instant-option" type="checkbox" checked>
+            <input id="instant-option" type="checkbox" checked>
         }
         else
         {
-        <input id="instant-option" type="checkbox">
+            <input id="instant-option" type="checkbox">
         }
         <span class="checkbox-marker">
             <span class="checkbox-check"></span>
         </span>
         Show pages instantly
     </label>
+</div>
+
+<div class="usercount-container">
+    <p> <span id="usercount"></span></p>
 </div>

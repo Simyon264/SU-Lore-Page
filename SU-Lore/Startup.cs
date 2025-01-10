@@ -77,6 +77,8 @@ public class Startup
 
         services.AddHttpContextAccessor();
 
+        services.AddSignalR();
+
         services.AddAuthentication(options =>
         {
             options.DefaultScheme = "Cookies";
@@ -158,6 +160,8 @@ public class Startup
             endpoints.MapControllerRoute(
                 name: "default",
                 pattern: "api/{controller=Home}/{action=Index}/{id?}");
+
+            endpoints.MapHub<UserCountHub>("/api/usercount");
         });
 
         app.UseHttpsRedirection();
