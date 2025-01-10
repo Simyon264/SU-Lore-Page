@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Net;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
 
@@ -6,17 +7,32 @@ namespace SU_Lore.Helpers;
 
 public class UserCountHub : Hub
 {
-    private static readonly ConcurrentDictionary<string, string> ConnectedUsers = new();
+    private static readonly SynchronizedCollection<HubUser> ConnectedUsers = new();
 
     public override Task OnConnectedAsync()
     {
         Log.Information("User connected: {ConnectionId}", Context.ConnectionId);
-        var ipAddress = Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
+        var ipAddress = GetIpAddress()?.ToString();
+        Log.Information("User IP address: {IpAddress}", ipAddress);
 
         if (string.IsNullOrEmpty(ipAddress))
+        {
+            Log.Warning("Could not get IP address for user {ConnectionId}", Context.ConnectionId);
             return base.OnConnectedAsync();
+        }
 
-        ConnectedUsers.TryAdd(Context.ConnectionId, ipAddress);
+
+        // Check if the IP address is already in the dictionary
+        var user = ConnectedUsers.FirstOrDefault(u => u.IpAddress == ipAddress);
+        if (user == null)
+        {
+            user = new HubUser {IpAddress = ipAddress};
+            ConnectedUsers.Add(user);
+        } else
+        {
+            user.ConnectionIds.Add(Context.ConnectionId);
+        }
+
         Clients.All.SendAsync("UpdateUserCount", GetUniqueUserCount());
 
         return base.OnConnectedAsync();
@@ -25,7 +41,28 @@ public class UserCountHub : Hub
     public override Task OnDisconnectedAsync(Exception? exception)
     {
         Log.Information("User disconnected: {ConnectionId}", Context.ConnectionId);
-        ConnectedUsers.TryRemove(Context.ConnectionId, out _);
+        var ipAddress = GetIpAddress()?.ToString();
+        Log.Information("User IP address: {IpAddress}", ipAddress);
+
+        if (string.IsNullOrEmpty(ipAddress))
+        {
+            Log.Warning("Could not get IP address for user {ConnectionId}", Context.ConnectionId);
+            return base.OnDisconnectedAsync(exception);
+        }
+
+        var user = ConnectedUsers.FirstOrDefault(u => u.IpAddress == ipAddress);
+        if (user != null)
+        {
+            user.ConnectionIds.Remove(Context.ConnectionId);
+            if (user.ConnectionIds.Count == 0)
+            {
+                ConnectedUsers.Remove(user);
+            }
+        } else
+        {
+            Log.Warning("Could not find user with IP address {IpAddress} to remove", ipAddress);
+        }
+
         Clients.All.SendAsync("UpdateUserCount", GetUniqueUserCount());
 
         return base.OnDisconnectedAsync(exception);
@@ -38,8 +75,31 @@ public class UserCountHub : Hub
 
     private int GetUniqueUserCount()
     {
-        return ConnectedUsers
-            .GroupBy(kvp => kvp.Value) // Group by IP address
-            .Count();                 // Count unique IPs
+        return ConnectedUsers.Count;
+    }
+
+    /// <summary>
+    /// Gets the IP address of the context. Respects X-Forwarded-For headers.
+    /// </summary>
+    /// <returns></returns>
+    private IPAddress? GetIpAddress()
+    {
+        var httpContext = Context.GetHttpContext();
+        var ipAddress = httpContext?.Connection.RemoteIpAddress;
+        if (httpContext != null && httpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+        {
+            if (IPAddress.TryParse(forwardedFor, out var forwardedIp))
+            {
+                ipAddress = forwardedIp;
+            }
+        }
+
+        return ipAddress;
+    }
+
+    public class HubUser
+    {
+        public List<string> ConnectionIds { get; set; } = new();
+        public string IpAddress { get; set; } = string.Empty;
     }
 }

@@ -128,6 +128,11 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
         app.UseHttpLogging();
 
         app.Use((context, next) =>
@@ -165,7 +170,6 @@ public class Startup
         });
 
         app.UseHttpsRedirection();
-        app.UseForwardedHeaders();
         app.UseRouting();
         app.UseCors();
 
