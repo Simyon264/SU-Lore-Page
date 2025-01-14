@@ -28,6 +28,7 @@ public class UserCountHub : Hub
         if (user == null)
         {
             user = new HubUser {IpAddress = ipAddress};
+            user.ConnectionIds.Add(Context.ConnectionId);
             ConnectedUsers.Add(user);
         } else
         {
@@ -43,10 +44,11 @@ public class UserCountHub : Hub
     {
         foreach (var user in ConnectedUsers)
         {
-            user.ConnectionIds.RemoveAll(c => Clients.Client(c).Equals(null));
+            user.ConnectionIds.RemoveAll(c => Clients.Client(c).SendAsync("Ping").IsFaulted);
             if (user.ConnectionIds.Count == 0)
             {
                 ConnectedUsers.Remove(user);
+                Log.Information("Vacuum! Removed user with IP address {IpAddress}", user.IpAddress);
             }
         }
     }
@@ -69,6 +71,7 @@ public class UserCountHub : Hub
             if (user.ConnectionIds.Count == 0)
             {
                 ConnectedUsers.Remove(user);
+                Log.Information("Removed user with IP address {IpAddress}", ipAddress);
             }
         } else
         {
