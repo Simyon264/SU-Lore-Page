@@ -11,6 +11,8 @@ public class UserCountHub : Hub
 
     public override Task OnConnectedAsync()
     {
+        CheckAllStillConnected();
+
         Log.Information("User connected: {ConnectionId}", Context.ConnectionId);
         var ipAddress = GetIpAddress()?.ToString();
 
@@ -35,6 +37,18 @@ public class UserCountHub : Hub
         Clients.All.SendAsync("UpdateUserCount", GetUniqueUserCount());
 
         return base.OnConnectedAsync();
+    }
+
+    private void CheckAllStillConnected()
+    {
+        foreach (var user in ConnectedUsers)
+        {
+            user.ConnectionIds.RemoveAll(c => Clients.Client(c).Equals(null));
+            if (user.ConnectionIds.Count == 0)
+            {
+                ConnectedUsers.Remove(user);
+            }
+        }
     }
 
     public override Task OnDisconnectedAsync(Exception? exception)
