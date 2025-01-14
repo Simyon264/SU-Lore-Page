@@ -703,7 +703,7 @@ private const string PrivacyPolicyAndToS =
 """
 [head=1]Sector Umbra Lore Page Privacy Policy[/head]
 [bold]Created at:[/bold] 02.12.2024 (DD/MM/YYYY)
-[bold]Updated at:[/bold] 02.12.2024 (DD/MM/YYYY)
+[bold]Updated at:[/bold] 14.01.2025 (DD/MM/YYYY)
 
 [head=2]Contact Information[/head]
 Data controller: Simyon (Operator of this website)
@@ -715,18 +715,21 @@ Data controller: Simyon (Operator of this website)
 2. [bold]Content creation:[/bold] Any content you make on this website is stored in our database. This includes current and past pages.
 3. [bold]Logging:[/bold] Any visits to articles are logged in an anonymized counter. This is used to track the popularity of articles.
 4. [bold]Files:[/bold] We store files you upload to the website. This is used to display the files to other users. 
+5. [bold]User counter:[/bold] We keep count of the current amount of users on the website. This is used to track the popularity of the website.
 
 [head=2]What data do we process for these purposes?[/head]
 1. [bold]Account creation:[/bold] Username, GUID, creation date and assigned roles. All of this data is publicly accessible.
 2. [bold]Content creation:[/bold] The content you create, including the title, body, flags and virtual path are stored in our database and are publicly accessible. You can choose to put your content behind a password. In this case, the password you choose is stored uneccrypted in our database.
 3. [bold]Logging:[/bold] Statistic counters do not store any identifiable information. IPv4 and IPv6 addresses are stored in provider logs and are used to serve your request.
 4. [bold]Files:[/bold] The files you upload are stored in our database and are publicly accessible.
+5. [bold]User counter:[/bold] The current amount of users is stored in-memory. This uses your IP address to ensure multiple tabs are not counted as multiple users. The IP address is removed as soon as you close the website.
 
 [head=2]Who has access to this information and under which circumstances?[/head]
 1. [bold]Account creation:[/bold] Your GUID, username and roles are publicly accessible.
 2. [bold]Content creation:[/bold] The content you create is publicly accessible. If you choose to put your content behind a password, only users with the password can access it.
 3. [bold]Logging:[/bold] Statistic counters are publicly accessible. Provider logs are only accessible to data controllers.
 4. [bold]Files:[/bold] The files you upload are publicly accessible.
+5. [bold]User counter:[/bold] The user counter is publicly accessible, but the IP address is not shown and only accessible to data controllers.
 
 [head=2]Retention period[/head]
 The database does daily backups and retains them for 7 days. After this period, the backups are deleted.
@@ -734,6 +737,7 @@ The database does daily backups and retains them for 7 days. After this period, 
 2. [bold]Content creation:[/bold] Your content is stored indefinitely until you request its deletion.
 3. [bold]Logging:[/bold] Logs are rotated daily and stored for 7 days.
 4. [bold]Files:[/bold] Files are stored indefinitely until you request their deletion.
+5. [bold]User counter:[/bold] The user counter is stored in-memory and is reset when the website is restarted. Entries get removed as soon as you close the website.
 
 [head=2]Disclosure on third-party sharing of information[/head]
 The following third-parties have access to personal data under the following conditions:
