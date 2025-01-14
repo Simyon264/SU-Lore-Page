@@ -36,7 +36,8 @@ export function initRoles(roles) {
 
 function CopyLinkButtonHandler() {
     let currentPage = getCurrentPage();
-    let link = `${window.location.origin}/?page=${currentPage.virtualPath}`;
+    let encodedPath = encodeURIComponent(currentPage.virtualPath);
+    let link = `${window.location.origin}/?page=${encodedPath}`;
     navigator.clipboard.writeText(link).then(() => {
         window.showAlert("Link copied", "The link has been copied to your clipboard.");
     });
