@@ -30,9 +30,9 @@
             if (i == 0)
             {
                 <div>
-                    <h2>@curPage.UpdatedAt - By: @curPage.UpdatedBy</h2>
+                    <h2>@curPage.UpdatedAt - By: @curPage.UpdatedBy (@curPage.ProfileUpdated)</h2>
                     <p>Version @curPage.Version</p>
-                    <p>Author @curPage.CreatedBy</p>
+                    <p>Author @curPage.CreatedBy (@curPage.ProfileUpdated)</p>
                     <p>Bytes: @System.Text.Encoding.Unicode.GetByteCount(curPage.Content)</p>
                 </div>
                 continue;
@@ -41,9 +41,9 @@
             var diffBuilder = new InlineDiffBuilder(new Differ());
             var diff = diffBuilder.BuildDiffModel(curPage.Content, newPage.Content);
             <div>
-                <h2>@curPage.UpdatedAt - By: @curPage.UpdatedBy</h2>
+                <h2>@curPage.UpdatedAt - By: @curPage.UpdatedBy (@curPage.ProfileUpdated)</h2>
                 <p>Version @curPage.Version</p>
-                <p>Author @curPage.CreatedBy</p>
+                <p>Author @curPage.CreatedBy (@curPage.ProfileCreated)</p>
                 <a class="button" href="/?page=@curPage.Id">View page at this point</a>
 
                 @if(curPage.Title != newPage.Title) {

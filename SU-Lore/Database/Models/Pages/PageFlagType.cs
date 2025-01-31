@@ -61,4 +61,7 @@ public enum PageFlagType
 
     [PageFlag("If set, the account delete button will be displayed on the page.", hasValue: false, hideInApi:true, hidden:true)]
     AddAccountDeleteButton = 10,
+
+    [PageFlag("Enable comments on this page.", hasValue: false)]
+    EnableComments = 11,
 }

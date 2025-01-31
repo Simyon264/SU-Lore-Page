@@ -1,0 +1,76 @@
+﻿@using SU_Lore.Controllers
+@using SU_Lore.Database
+@using SU_Lore.Database.Models.Accounts
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationDbContext ApplicationDbContext
+@inject NavigationManager NavigationManager
+
+<p>Currently logged in as: <i>@CurrentUser</i></p>
+<button @onclick="Logout" class="button" disabled="@(!LoggedIn())">Logout</button>
+
+<div class="profile-login">
+    <input type="text" placeholder="Username" @bind="_username"/>
+    <input type="password" placeholder="Password" @bind="_password"/>
+
+    <button class="button" @onclick="Login">Login</button>
+</div>
+
+@code {
+    private AuthenticationState AuthenticationState => AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
+    private string CurrentUser => AccountController.GetProfile(AuthenticationState.User);
+
+    [Parameter] public Account? Account { get; set; }
+    [Parameter] public required IJSRuntime JsRuntime { get; set; }
+
+    private string _username = "";
+    private string _password = "";
+
+    private bool LoggedIn()
+    {
+        if (Account == null)
+            return false;
+
+        if (!Account.Roles.HasAnyRole(Role.Whitelisted))
+            return false;
+
+        if (CurrentUser == "Unknown") // Not logged in.
+            return false;
+
+        if (CurrentUser == Account.Username)
+            return false; // Not logged into a profile
+
+        return true;
+    }
+
+    public async Task Logout()
+    {
+        NavigationManager.NavigateTo("/account/profile/logout", true);
+    }
+
+    public async Task Login()
+    {
+        if (Account == null || !Account.Roles.HasAnyRole(Role.Whitelisted))
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error", "You do not have permission to login via profile, please log in via SS14.");
+            return;
+        }
+
+        var profile = ApplicationDbContext.Profiles.FirstOrDefault(p => p.Name == _username);
+        if (profile == null)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error", "Invalid username");
+            return;
+        }
+
+        if (_password != profile.Password && profile.Password != null)
+        {
+            await JsRuntime.InvokeVoidAsync("showAlert", "Error", "Invalid password");
+            return;
+        }
+
+        var ticket = Guid.NewGuid();
+        AccountController.ProfileTickets.TryAdd(ticket, profile.Name);
+        NavigationManager.NavigateTo($"/account/profile/login?ticket={ticket}", true);
+    }
+}

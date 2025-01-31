@@ -27,11 +27,11 @@ public class RichTextParser
         return DateTime.Now.AddYears(200).ToString("yyyy-MM-dd");
     }
 
-    public async Task<MarkupString> Parse(string input, Account? user = null)
+    public async Task<MarkupString> Parse(string input, string? user = null)
     {
         try
         {
-            user ??= await _authenticationHelper.FetchAccount();
+
         }
         catch (Exception e)
         {
@@ -254,10 +254,10 @@ public class RichTextParser
         }
     }
 
-    private void ReplaceStatics(ref string input, Account? account)
+    private void ReplaceStatics(ref string input, string? account)
     {
         input = input.Replace("[date]", GetCurrentDate());
-        input = input.Replace("[username]", account?.Username ?? "Anonymous");
+        input = input.Replace("[username]", account ?? "Anonymous");
 
         // Prevent XSS
         input = input.Replace("<", "&lt;");

@@ -1,9 +1,11 @@
 ﻿@page "/editor"
 
 @using System.Text.Json
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 @using Serilog
+@using SU_Lore.Controllers
 @using SU_Lore.Data
 @using SU_Lore.Data.RichText
 @using SU_Lore.Database
@@ -17,6 +19,7 @@
 @inject ApplicationDbContext DbContext
 @inject IJSRuntime JsRuntime
 @inject RichTextParser RichTextParser
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="screen">
     <div class="header">
@@ -60,7 +63,7 @@
                         <label for="title">Title</label>
                         <br/>
                         <input class="hidden" type="checkbox"/> <!-- stupid ass workaround -->
-                        <input autocomplete="off" type="text" id="title" value="@Page?.Title" />
+                        <input autocomplete="off" type="text" id="title" value="@Page?.Title"/>
                     </div>
                     <div class="property" property="Path">
                         <label for="path">Path</label>
@@ -69,7 +72,7 @@
                         <p>Example: /path/to/page</p>
                         <br/>
                         <input class="hidden" type="checkbox"/> <!-- stupid ass workaround -->
-                        <input autocomplete="off" type="text" id="path" value="@Page?.VirtualPath" />
+                        <input autocomplete="off" type="text" id="path" value="@Page?.VirtualPath"/>
                     </div>
                     <br/>
                     @foreach (var flagType in Enum.GetValues(typeof(PageFlagType)).Cast<PageFlagType>())
@@ -79,26 +82,27 @@
                         if (flagAttribute.Hidden)
                             continue;
 
-                    <div class="property" property="@flagType.ToString()">
-                        <label for="@flagType.ToString()">@flagType.ToString()</label>
-                        @if (Page?.Flags.FirstOrDefault(f => f.Type == flagType) != null)
-                        {
-                            <input type="checkbox" id="@flagType.ToString()" checked />
-                        }
-                        else
-                        {
-                            <input type="checkbox" id="@flagType.ToString()" />
-                        }
-                        <br/>
-                        <p>@flagAttribute.Description</p>
-                        @if (flagAttribute.HasValue)
-                        {
-                            <input type="text" id="@flagType.ToString()_text" autocomplete="off" value="@Page?.Flags.FirstOrDefault(f => f.Type == flagType)?.Value" />
-                        } else
-                        {
-                            <input type="text" id="@flagType.ToString()_text" autocomplete="off" value="@Page?.Flags.FirstOrDefault(f => f.Type == flagType)?.Value" class="hidden" hidden="hidden" />
-                        }
-                    </div>
+                        <div class="property" property="@flagType.ToString()">
+                            <label for="@flagType.ToString()">@flagType.ToString()</label>
+                            @if (Page?.Flags.FirstOrDefault(f => f.Type == flagType) != null)
+                            {
+                                <input type="checkbox" id="@flagType.ToString()" checked/>
+                            }
+                            else
+                            {
+                                <input type="checkbox" id="@flagType.ToString()"/>
+                            }
+                            <br/>
+                            <p>@flagAttribute.Description</p>
+                            @if (flagAttribute.HasValue)
+                            {
+                                <input type="text" id="@flagType.ToString()_text" autocomplete="off" value="@Page?.Flags.FirstOrDefault(f => f.Type == flagType)?.Value"/>
+                            }
+                            else
+                            {
+                                <input type="text" id="@flagType.ToString()_text" autocomplete="off" value="@Page?.Flags.FirstOrDefault(f => f.Type == flagType)?.Value" class="hidden" hidden="hidden"/>
+                            }
+                        </div>
                     }
                 </div>
             }
@@ -119,6 +123,9 @@
     private Page? Page { get; set; }
     private bool ShowProperties { get; set; } = false;
     private DotNetObjectReference<Editor>? _dotNetRef;
+
+    private AuthenticationState AuthenticationState => AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
+    private string LoggedInProfile => AccountController.GetProfile(AuthenticationState.User);
 
     private const string RichTextHelp =
         @"
@@ -257,6 +264,8 @@
                         {
                             DbContext.Pages.Remove(page);
                         }
+
+                        DbContext.Comments.RemoveRange(DbContext.Comments.Where(c => c.PageId == Page!.PageGuid));
                         await DbContext.SaveChangesAsync();
                         NavigationManager.NavigateTo("/?page=/system/listing", true);
                     }
@@ -342,10 +351,19 @@
                     return;
                 }
 
-                if (!account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin) && found.CreatedBy != account.Id)
+                if (!account.Roles.HasAnyRole(Role.Admin, Role.DatabaseAdmin)
+                    &&
+                    (
+                        // If the page has a profile attached via ProfileCreated, we need to check if the profile is the same as the logged in profile,
+                        // otherwise we need to check if the page was created by the logged in account
+                        (found.ProfileCreated != null && found.ProfileCreated != LoggedInProfile)
+                        ||
+                        (found.ProfileCreated == null && found.CreatedBy != account.Id)
+                        )
+                )
                 {
                     Unauthorized = true;
-                    Message = "You can only edit pages you have created.";
+                    Message = "You can only edit pages you have created. Currently logged in as: " + LoggedInProfile;
                     return;
                 }
 
@@ -371,6 +389,8 @@
                 VirtualPath = "/path/to/page",
                 UpdatedAt = DateTime.UtcNow,
                 UpdatedBy = account.Id,
+                ProfileCreated = LoggedInProfile,
+                ProfileUpdated = LoggedInProfile,
                 PageGuid = Guid.NewGuid(), // If we get any collisions, I'll be surprised
             };
         }
@@ -472,6 +492,8 @@
                 UpdatedAt = DateTime.UtcNow,
                 UpdatedBy = account.Id,
                 PageGuid = Page!.PageGuid,
+                ProfileCreated = Page!.ProfileCreated,
+                ProfileUpdated = LoggedInProfile,
             };
 
             // In order to prevent " duplicate key value violates unique constraint "PK_PageFlag"" errors, we duplicate the flags, like in ApplyProperties

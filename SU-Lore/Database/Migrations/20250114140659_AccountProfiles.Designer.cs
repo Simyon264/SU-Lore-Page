@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SU_Lore.Database;
@@ -11,9 +12,11 @@ using SU_Lore.Database;
 namespace SU_Lore.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250114140659_AccountProfiles")]
+    partial class AccountProfiles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -46,12 +49,6 @@ namespace SU_Lore.Migrations
 
             modelBuilder.Entity("SU_Lore.Database.Models.Accounts.Profile", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
@@ -66,11 +63,9 @@ namespace SU_Lore.Migrations
                     b.Property<string>("Password")
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("AccountId");
 
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("Name")
+                    b.HasIndex("AccountId")
                         .IsUnique();
 
                     b.ToTable("Profiles");
@@ -210,12 +205,6 @@ namespace SU_Lore.Migrations
                     b.Property<Guid>("PageGuid")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ProfileCreated")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ProfileUpdated")
-                        .HasColumnType("text");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text");
@@ -236,36 +225,6 @@ namespace SU_Lore.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Pages", (string)null);
-                });
-
-            modelBuilder.Entity("SU_Lore.Database.Models.Pages.PageComment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("PageId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ProfileName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Comments");
                 });
 
             modelBuilder.Entity("SU_Lore.Database.Models.Pages.PageFlag", b =>
@@ -296,8 +255,8 @@ namespace SU_Lore.Migrations
             modelBuilder.Entity("SU_Lore.Database.Models.Accounts.Profile", b =>
                 {
                     b.HasOne("SU_Lore.Database.Models.Accounts.Account", "Account")
-                        .WithMany("Profiles")
-                        .HasForeignKey("AccountId")
+                        .WithOne()
+                        .HasForeignKey("SU_Lore.Database.Models.Accounts.Profile", "AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -324,11 +283,6 @@ namespace SU_Lore.Migrations
                         .IsRequired();
 
                     b.Navigation("Page");
-                });
-
-            modelBuilder.Entity("SU_Lore.Database.Models.Accounts.Account", b =>
-                {
-                    b.Navigation("Profiles");
                 });
 
             modelBuilder.Entity("SU_Lore.Database.Models.Pages.Page", b =>

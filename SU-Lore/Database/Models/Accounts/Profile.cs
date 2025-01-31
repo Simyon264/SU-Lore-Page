@@ -2,10 +2,21 @@
 
 public class Profile
 {
-    public string Name { get; set; }
-    public string Bio { get; set; }
+    public int Id { get; set; }
 
-    public string Password { get; set; }
+    /// <summary>
+    /// The unique identifier of the profile.
+    /// </summary>
+    public required string Name { get; set; }
+    /// <summary>
+    /// Short description of the user.
+    /// </summary>
+    public required string Bio { get; set; }
+
+    /// <summary>
+    /// The password of the profile. Can be null if a password is not required.
+    /// </summary>
+    public string? Password { get; set; }
 
     /// <summary>
     /// The account that created this profile.

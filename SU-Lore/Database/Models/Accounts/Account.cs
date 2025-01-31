@@ -12,14 +12,19 @@ public class Account
     /// The unique identifier of the account.
     /// </summary>
     public required Guid Id { get; set; }
-    
+
     /// <summary>
     /// The username of the account.
     /// </summary>
     public required string Username { get; set; }
-    
+
     /// <summary>
     /// Roles that the account has. This is a set because an account can only have one of each role. Would be weird if you were a db admin twice.
     /// </summary>
     public List<Role> Roles { get; set; } = new();
+
+    /// <summary>
+    /// The profiles that the account has.
+    /// </summary>
+    public List<Profile> Profiles { get; set; } = new();
 }

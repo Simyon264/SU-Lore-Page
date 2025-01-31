@@ -1,0 +1,88 @@
+﻿@page "/profile"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@using SU_Lore.Controllers
+@using SU_Lore.Database
+@using SU_Lore.Database.Models.Accounts
+@using SU_Lore.Helpers
+@using SU_Lore.Pages.Components
+@using SU_Lore.Pages.Shared
+
+@attribute [Authorize]
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject AuthenticationHelper AuthenticationHelper
+@inject ApplicationDbContext ApplicationDbContext
+@inject IJSRuntime JsRuntime
+
+<div class="screen">
+    <div class="header">
+        <span class="logo color-cc">
+            <span class="nt-logo">N</span>
+            Central Command
+        </span>
+        <span class="header-title">
+            Login
+        </span>
+    </div>
+    <div class="header">
+        <a class="backlink" href="/?page=/system/listing">Return to listing</a>
+    </div>
+
+    <Alert></Alert>
+    <div id="parent" style="overflow: auto;">
+        <div class="content" style="white-space-collapse: collapse !important;" id="content">
+            <ProfileLoginLogout Account="_account" JsRuntime="JsRuntime"></ProfileLoginLogout>
+            <br/>
+
+            <!-- Profile list -->
+            <div>
+                <h2>Profiles</h2>
+                @foreach (var profile in ApplicationDbContext.Profiles
+                                  .Include(p => p.Account))
+                {
+                    <ProfileDisplay Profile="@profile" Account="_account" ProfilePage="this" JsRuntime="@JsRuntime"/>
+                }
+            </div>
+
+            <hr/>
+
+            @if (_account.Roles.HasRole(Role.Whitelisted))
+            {
+                <div class="create-profile">
+                    <ProfileDisplay IsCreate="true" Account="_account" JsRuntime="JsRuntime" ProfilePage="this"></ProfileDisplay>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private AuthenticationState AuthenticationState => AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
+
+    private string CurrentUser => AccountController.GetProfile(AuthenticationState.User);
+    private Account? _account;
+    private DotNetObjectReference<Profile>? _dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await AuthenticationHelper.FetchAccount(true);
+        _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JsRuntime.InvokeVoidAsync("start", _dotNetRef);
+        }
+    }
+
+    public void Refresh()
+    {
+        StateHasChanged();
+    }
+}

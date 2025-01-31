@@ -55,7 +55,9 @@ public class PageReader
                 UpdatedBy = p.UpdatedBy,
                 Version = p.Version,
                 VirtualPath = p.VirtualPath,
-                PageGuid = p.PageGuid
+                PageGuid = p.PageGuid,
+                ProfileCreated = p.ProfileCreated,
+                ProfileUpdated = p.ProfileUpdated
             })
             .Where(p => p.PageGuid == guid)
             .OrderByDescending(p => p.Version)
@@ -553,6 +555,7 @@ public class PageReader
             {
                 sb.AppendLine("[color=info][block=info]ID card recognized. Welcome [username].[/block][/color]");
                 sb.AppendLine("[button=/system/link/account/logout;EJECT ID]");
+                sb.AppendLine("[button=/system/link/profile;PROFILE MANAGEMENT]");
             } else {
                 sb.AppendLine("[color=info][block=info]ID card recognized. Welcome [username].");
                 sb.AppendLine("[color=red]You are not authorized to create or edit content, please contact Simyon for access.[/color]");

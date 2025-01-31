@@ -1,7 +1,10 @@
-﻿using System.Security.Claims;
+﻿using System.Collections.Concurrent;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using SU_Lore.Data;
 using SU_Lore.Database;
 using SU_Lore.Database.Models.Accounts;
@@ -13,6 +16,15 @@ namespace SU_Lore.Controllers;
 [Route("/account/")]
 public class AccountController : Controller
 {
+    /// <summary>
+    /// Contains tickets for login into profiles.
+    /// Key: Ticket
+    /// Value: Profile name
+    /// </summary>
+    public static ConcurrentDictionary<Guid, string> ProfileTickets = new();
+
+    public const string ProfileClaim = "Profile";
+
     private readonly ApplicationDbContext _context;
 
     public AccountController(ApplicationDbContext context)
@@ -78,6 +90,84 @@ public class AccountController : Controller
             await _context.SaveChangesAsync();
         }
 
+        User.AddIdentity(new ClaimsIdentity(new List<Claim>()
+        {
+            new Claim(ProfileClaim, account.Username),
+        }, "Cookies"));
+
+        await HttpContext.SignInAsync("Cookies", new ClaimsPrincipal(User));
+
+        Log.Information("User {Username} logged in. Profile: {Profile}", account.Username, GetProfile(User));
+
         return Redirect("/?page=/system/listing");
+    }
+
+    [HttpGet]
+    [Route("profile/login")]
+    public async Task<IActionResult> ProfileLogin(
+        [FromQuery] Guid ticket
+        )
+    {
+        if (!ProfileTickets.TryRemove(ticket, out var profile))
+        {
+            return NotFound("Invalid ticket.");
+        }
+
+        var guid = Guid.Parse(User.Claims.First(c => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value);
+        var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == guid);
+        if (account == null)
+        {
+            return BadRequest("You need to be logged in to an account to log into a profile.");
+        }
+
+        var user = User as ClaimsPrincipal;
+        var identity = user.Identity as ClaimsIdentity;
+        var claims = identity.Claims.Where(c => c.Type != ProfileClaim).ToList();
+
+        claims.Add(new Claim(ProfileClaim, profile));
+
+        var newIdentity = new ClaimsIdentity(claims, "Cookies");
+        await HttpContext.SignInAsync("Cookies", new ClaimsPrincipal(newIdentity));
+
+        Log.Information("User {Username} logged in. Profile: {Profile}", account.Username, GetProfile(User));
+        return Redirect("/?page=/system/listing");
+    }
+
+    /// <summary>
+    /// Logs you out of your profile but not the account.
+    /// </summary>
+    [HttpGet]
+    [Route("profile/logout")]
+    public async Task<IActionResult> ProfileLogout()
+    {
+        var profile = GetProfile(User);
+        if (profile == "Unknown")
+        {
+            return Unauthorized("You are not logged into a profile.");
+        }
+
+        var guid = Guid.Parse(User.Claims.First(c => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value);
+        var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == guid);
+        if (account == null)
+        {
+            return Unauthorized("You are not logged into an account.");
+        }
+
+        var user = User as ClaimsPrincipal;
+        var identity = user.Identity as ClaimsIdentity;
+        var claims = identity.Claims.Where(c => c.Type != ProfileClaim).ToList();
+
+        claims.Add(new Claim(ProfileClaim, account.Username));
+
+        var newIdentity = new ClaimsIdentity(claims, "Cookies");
+        await HttpContext.SignInAsync("Cookies", new ClaimsPrincipal(newIdentity));
+
+        Log.Information("User {Username} logged out of profile {Profile}.", account.Username, profile);
+        return Redirect("/?page=/system/listing");
+    }
+
+    public static string GetProfile(ClaimsPrincipal user)
+    {
+        return user.FindFirst(ProfileClaim)?.Value ?? "Unknown";
     }
 }

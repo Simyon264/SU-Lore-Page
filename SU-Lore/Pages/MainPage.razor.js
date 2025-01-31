@@ -1,6 +1,24 @@
 ﻿let pages = []
 let accountRoles = []
+let profile = null;
 let dotnetHelper = null;
+
+// Comments for the current page
+let comments = [];
+let currentCommentsPage = null;
+
+const commentPrefab = // html template for a comment
+`
+<div class="comment">
+    <div class="comment-header">
+        <span class="comment-author">{author}</span>
+        <span class="comment-date">{date}</span>
+    </div>
+    <div class="comment-content">
+        <p>{content}</p>
+    </div>
+</div>
+`;
 
 // roles that can skip password protection
 const skipRoles = [
@@ -10,6 +28,7 @@ const skipRoles = [
 ]
 
 const defaultTextSpeed = 15;
+const max_comments_per_page = 10;
 
 let abortController = null;
 
@@ -32,6 +51,11 @@ export function initRoles(roles) {
 
     console.log(`Got roles: ${roles}`);
     accountRoles = roles;
+}
+
+export function initProfile(revprofile) {
+    profile = revprofile;
+    console.log("Received profile:", profile);
 }
 
 function CopyLinkButtonHandler() {
@@ -66,6 +90,17 @@ export async function addHandlers() {
     addHandler("#return-button", "click", ReturnButtonHandler);
 
     addHandler("#instant-option", "change", InstantOptionHandler);
+
+    addHandler("#comment-submit", "click", AddCommentHandler);
+    addHandler("#comment-prev", "click", () => {
+        currentCommentsPage = Math.max(0, currentCommentsPage - 1);
+        renderComments();
+    });
+    addHandler("#comment-next", "click", () => {
+        let maxPage = Math.floor(comments.length / max_comments_per_page);
+        currentCommentsPage = Math.min(maxPage, currentCommentsPage + 1);
+        renderComments();
+    });
 
     // General listening for anchor tags
     document.addEventListener("click", async (e) => {
@@ -127,7 +162,7 @@ export async function addHandlers() {
 
 function RawButtonHandler() {
     let currentPage = getCurrentPage();
-    let url = `/page/raw?virtualPath=${currentPage.id}`;
+    let url = `/rawr?page=${currentPage.id}`;
     window.open(url, "_blank");
 }
 
@@ -237,9 +272,25 @@ async function displayPage(page, addToHistory = true) {
         passwordPrompt.classList.add("hidden");
     }
 
+    if (profile == null || profile == "Unknown") {
+        document.getElementById("comment-form").classList.add("hidden");
+    } else {
+        document.getElementById("comment-form").classList.remove("hidden");
+    }
+
     // empty the password field
     document.getElementById("password").value = "";
     setContent("");
+    if (!page.virtualPath.startsWith("/system/") && hasFlag(page, "EnableComments")) {
+        fetchCommentsForPage(page.pageGuid);
+        document.getElementById("comments").classList.remove("hidden");
+        document.getElementById("comment-page-control").classList.remove("hidden");
+    } else {
+        clearComments();
+        document.getElementById("comment-form").classList.add("hidden");
+        document.getElementById("comments").classList.add("hidden");
+        document.getElementById("comment-page-control").classList.add("hidden");
+    }
 
     document.getElementById("content-password").classList.remove("hidden");
 
@@ -445,6 +496,81 @@ async function displayPage(page, addToHistory = true) {
             displayPage(await resolvePage(loadAfterFinish));
         }
     }
+}
+
+function clearComments() {
+    let comments = document.getElementById("comments");
+    comments.innerHTML = "";
+}
+
+function addComment(author, date, content) {
+    author = escapeHtml(author);
+    date = new Date(date).toLocaleString();
+
+    date = escapeHtml(date);
+    content = escapeHtml(content);
+
+    let comments = document.getElementById("comments");
+    let comment = commentPrefab.replace("{author}", author).replace("{date}", date).replace("{content}", content);
+    comments.innerHTML += comment;
+}
+
+function fetchCommentsForPage(pageGuid) {
+    fetch(`/api/page/${pageGuid}/comments`)
+        .then(response => response.json())
+        .then(recieved_comments => {
+            console.log("Received comments:", recieved_comments);
+            //comments.forEach(c => addComment(c.profileName, c.createdAt, c.content));
+            comments = recieved_comments;
+            currentCommentsPage = 0;
+            renderComments()
+        });
+}
+
+function renderComments() {
+    let maxPage = Math.floor(comments.length / max_comments_per_page);
+    document.getElementById("comment-page").innerHTML = `${currentCommentsPage + 1} / ${maxPage + 1}`;
+
+    clearComments();
+    let start = currentCommentsPage * max_comments_per_page;
+    let end = Math.min(start + max_comments_per_page, comments.length);
+
+    for (let i = start; i < end; i++) {
+        let comment = comments[i];
+        addComment(comment.profileName, comment.createdAt, comment.content);
+    }
+}
+
+function escapeHtml(unsafe)
+{
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function AddCommentHandler() {
+    let content = document.getElementById("comment-text").value;
+    let page = getCurrentPage();
+    let pageGuid = page.pageGuid;
+    let urlEncodedContent = encodeURIComponent(content);
+
+    fetch(`/api/page/${pageGuid}/comments?content=${urlEncodedContent}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json"
+        },
+    }).then(response => {
+        if (response.ok) {
+            document.getElementById("comment-text").value = "";
+            fetchCommentsForPage(pageGuid);
+        } else {
+            console.error("Failed to add comment:", response);
+            window.showAlert("Failed to add comment", "An error occurred while adding your comment.");
+        }
+    });
 }
 
 /**

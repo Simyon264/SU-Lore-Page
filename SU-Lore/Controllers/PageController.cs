@@ -86,7 +86,11 @@ public class PageController : Controller
         if (string.IsNullOrWhiteSpace(text))
             return BadRequest("Text cannot be empty.");
 
-        var account = GetAccount();
+        string? account = null;
+        if (User.Identity != null)
+        {
+            account = AccountController.GetProfile(User);
+        }
 
         var parser = new RichTextParser(_authHelper, _authStateProvider);
         var html = await parser.Parse(text, account);
@@ -159,6 +163,69 @@ public class PageController : Controller
         }
 
         return Ok(response);
+    }
+
+    [HttpGet("{pageGuid:guid}/comments")]
+    public async Task<IActionResult> GetComments(Guid pageGuid)
+    {
+        var comments = await _context.Comments
+            .Where(c => c.PageId == pageGuid)
+            .OrderByDescending(c => c.CreatedAt) // Newest first
+            .ToListAsync();
+
+        return Ok(comments);
+    }
+
+    [HttpPut("{pageGuid:guid}/comments")]
+    public async Task<IActionResult> AddComment(Guid pageGuid,
+        [FromQuery] string content)
+    {
+        var account = GetAccount();
+        if (account == null)
+            return Unauthorized();
+
+        var profile = AccountController.GetProfile(User);
+
+        if (profile == "Unknown")
+            return Unauthorized();
+
+        if (content == null || content.Length < 1)
+            return BadRequest("Comment cannot be empty.");
+
+        var comment = new PageComment()
+        {
+            PageId = pageGuid,
+            Content = content,
+            AccountId = account.Id,
+            ProfileName = profile
+        };
+
+        await _context.Comments.AddAsync(comment);
+        await _context.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    [HttpDelete("{pageGuid:guid}/comments/{commentId:int}")]
+    public async Task<IActionResult> DeleteComment(Guid pageGuid, int commentId)
+    {
+        var account = GetAccount();
+        if (account == null)
+            return Unauthorized();
+
+        var comment = await _context.Comments
+            .FirstOrDefaultAsync(c => c.Id == commentId && c.PageId == pageGuid);
+
+        if (comment == null)
+            return NotFound();
+
+        if (comment.AccountId != account.Id && !account.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin))
+            return Unauthorized("You do not have permission to delete this comment.");
+
+        _context.Comments.Remove(comment);
+        await _context.SaveChangesAsync();
+
+        return Ok();
     }
 
     public class PageResponse

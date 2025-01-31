@@ -1,0 +1,201 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using Serilog
+@using SU_Lore.Database
+@using SU_Lore.Database.Models.Accounts
+
+@inject ApplicationDbContext ApplicationDbContext
+
+<div class="profile">
+    @if (!_showEdit)
+    {
+        <h3>@Profile.Name</h3>
+        <p>@Profile.Bio</p>
+    }
+    else
+    {
+        <input type="text" @bind="Profile.Name" />
+        <textarea @bind="Profile.Bio"></textarea>
+        @if (IsCreate || Account!.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin) || Profile.AccountId == Account!.Id)
+        {
+            <label for="password">Profile password</label>
+            <input type="password" @bind="Profile.Password" placeholder="" id="password" />
+        }
+
+        <br/>
+
+        @if (IsCreate)
+        {
+            <button class="button" @onclick="Save">Create</button>
+        }
+        else
+        {
+            <button class="button" @onclick="Save">Save</button>
+            <button class="button" @onclick="Delete">Delete</button>
+        }
+    }
+
+
+    @if (LoggedIn && !_showEdit)
+    {
+        <button class="button" @onclick="ShowEdit">Edit</button>
+    }
+</div>
+
+@code {
+    [Parameter] public required Profile Profile { get; set; }
+    [Parameter] public Account? Account { get; set; } // Logged in account
+    [Parameter] public required IJSRuntime JsRuntime { get; set; }
+    [Parameter] public bool IsCreate { get; set; } = false;
+    [Parameter] public Pages.Profile? ProfilePage { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (IsCreate)
+        {
+            Profile = new Profile()
+            {
+                Bio = "Type your bio here",
+                Name = "New profile"
+            };
+
+            _showEdit = true;
+        }
+    }
+
+    private bool LoggedIn => Account != null;
+
+    private bool _showEdit = false;
+
+    private void ShowEdit()
+    {
+        _showEdit = true;
+    }
+
+    private async Task Delete()
+    {
+        if (!LoggedIn)
+            return; // Don't delete if not logged in
+
+        if (Profile.AccountId != Account!.Id)
+        {
+            ShowAlert("Error", "You can only delete your own profiles");
+            return;
+        }
+
+        ApplicationDbContext.Profiles.Remove(Profile);
+        try
+        {
+            await ApplicationDbContext.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Failed to delete profile");
+            ShowAlert("Error", "Failed to delete profile");
+            return;
+        }
+
+        ProfilePage?.Refresh();
+    }
+
+    private async Task Save()
+    {
+        if (!LoggedIn)
+            return; // Don't save if not logged in
+
+        if (Profile.AccountId != Account!.Id
+            && !Account!.Roles.HasAnyRole(Role.Admin, Role.Moderator, Role.DatabaseAdmin)
+            && !IsCreate
+        )
+        {
+            ShowAlert("Error", "You can only edit your own profiles");
+            return;
+        }
+
+        if (!Account!.Roles.HasRole(Role.Whitelisted))
+        {
+            ShowAlert("Error", "You do not have permission to save/create profiles");
+            return;
+        }
+
+        // Check if new name is valid
+        if (string.IsNullOrWhiteSpace(Profile.Name))
+        {
+            ShowAlert("Error", "Name cannot be empty");
+            return;
+        }
+
+        if (Profile.Name.Length > 50)
+        {
+            ShowAlert("Error", "Name cannot be longer than 50 characters");
+            return;
+        }
+
+        // Check if new bio is valid
+        if (string.IsNullOrWhiteSpace(Profile.Bio))
+        {
+            ShowAlert("Error", "Bio cannot be empty");
+            return;
+        }
+
+        if (Profile.Bio.Length > 500)
+        {
+            ShowAlert("Error", "Bio cannot be longer than 500 characters");
+            return;
+        }
+
+        // Check if there already is a profile with the same name
+        var existingProfile = await ApplicationDbContext.Profiles.FirstOrDefaultAsync(p => p.Name == Profile.Name);
+        if (existingProfile != null && existingProfile.Id != Profile.Id)
+        {
+            ShowAlert("Error", "A profile with that name already exists");
+            return;
+        }
+
+        try
+        {
+            if (IsCreate)
+            {
+                Profile.AccountId = Account!.Id;
+                ApplicationDbContext.Profiles.Add(new Profile()
+                {
+                    Name = Profile.Name,
+                    Bio = Profile.Bio,
+                    AccountId = Account!.Id,
+                    Password = Profile.Password
+                });
+            }
+
+            await ApplicationDbContext.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Failed to save profile");
+            ShowAlert("Error", "Failed to save profile");
+            return;
+        }
+        _showEdit = false;
+
+        if (IsCreate)
+        {
+            _showEdit = true;
+            Profile = new Profile()
+            {
+                Bio = "Type your bio here",
+                Name = "New profile"
+            };
+            ShowAlert("Success", "Profile created");
+        }
+        else
+        {
+            ShowAlert("Success", "Profile saved");
+        }
+
+        StateHasChanged();
+        ProfilePage?.Refresh();
+    }
+
+    private void ShowAlert(string title, string message)
+    {
+        JsRuntime.InvokeVoidAsync("showAlert", title, message);
+    }
+}

@@ -156,12 +156,10 @@ code {
 }
 
 body {
-    display: grid;
     box-sizing: border-box;
     grid-template-rows: 1fr auto;
     width: 100%;
     height: 100%;
-    overflow: hidden;
     justify-items: center;
     align-items: center;
 }
@@ -226,6 +224,7 @@ a:not(.button)::before {
 }
 
 .screen {
+    margin-top: 0.5rem;
     display: flex;
     box-sizing: border-box;
     flex-direction: column;
@@ -328,6 +327,12 @@ a:not(.button)::before {
     color: var(--bg);
     text-shadow: none;
     box-shadow: var(--glow-bright);
+}
+
+.button:disabled {
+    color: var(--fg-sys);
+    text-shadow: var(--glow-sys);
+    cursor: not-allowed;
 }
 
 button::before {
@@ -587,4 +592,79 @@ video {
 .usercount-container span {
     color: var(--fg-bright);
     text-shadow: var(--glow-bright);
+}
+
+.profile {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    margin-left: 1rem;
+}
+
+.profile textarea {
+    width: 90%;
+    height: 100%;
+    padding: 0.5rem 1ch;
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: var(--glow);
+    border: none;
+    resize: none;
+    overflow: auto;
+}
+
+.create-profile {
+    margin-top: 1.5rem;
+}
+
+.profile-login {
+    margin-top: 1.5rem;
+    margin-left: 1rem;
+}
+
+.comments {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    margin-left: 1rem;
+    width: 80%;
+}
+
+.comment {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    margin-left: 1rem;
+}
+
+.comment-header {
+    display: flex;
+    gap: 1ch;
+}
+
+.comment-author {
+    font-weight: bold;
+}
+
+.comment-date {
+    font-style: italic;
+}
+
+.comment-content {
+    margin-top: 0.5rem;
+}
+
+.comment-text-area {
+    width: 90%;
+    height: 100%;
+    padding: 0.5rem 1ch;
+    background-color: var(--bg);
+    color: var(--fg);
+    box-shadow: var(--glow);
+    border: none;
+    resize: none;
+    overflow: auto;
+}
+
+.comment-page-control {
+    display: flex;
+    gap: 1ch;
+    justify-content: center;
 }
